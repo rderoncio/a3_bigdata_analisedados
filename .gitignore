@@ -1,5 +1,8 @@
 ### Arquivos de teste ##
-/old_bases
+BRFlights.ipynb
+/A3/BRFlights2.csv
+/A3/quebrar_base.ipynb
+/A3/anac_análise_exploratória_dev.ipynb
 
 ### Git ###
 # Created by git for backups. To disable backups in Git:
@@ -95,7 +98,7 @@ docs/_build/
 target/
 
 # Jupyter Notebook
-.ipynb_checkpoints
+#.ipynb_checkpoints
 
 # IPython
 profile_default/
