@@ -1,84 +1,72 @@
-import pandas as pd
 from enum import Enum
 from datetime import datetime
+from typing import List
 import numpy as np
+import pandas as pd
 
-class DescricaoColuna(Enum):
+class Utils(Enum):
     """
-    Classe de Enums para armazenar as descrições das colunas do DataFrame.
+    Classe utilitária que contém os metodos auxiliares para o EDA do dataset de voos.
     """
-    voos = 'Número do voo'
-    companhia_aerea = 'Nome da companhia aérea'
-    codigo_tipo_linha = 'Código do tipo de linha (internacional)'
-    partida_prevista = 'Horário previsto de partida'
-    partida_real = 'Horário real de partida'
-    chegada_prevista = 'Horário previsto de chegada'
-    chegada_real = 'Horário real de chegada'
-    situacao_voo = 'Situação do voo (realizado, cancelado, etc)'
-    codigo_justificativa = 'Código de justificativa (caso o voo tenha sido cancelado)'
-    aeroporto_origem = 'Código do aeroporto de origem'
-    cidade_origem = 'Cidade de origem'
-    estado_origem = 'Estado de origem'
-    pais_origem = 'País de origem'
-    aeroporto_destino = 'Código do aeroporto de destino'
-    cidade_destino = 'Cidade de destino'
-    estado_destino = 'Estado de destino'
-    pais_destino = 'País de destino'
-    lat_orig = 'Latitude do aeroporto de origem'
-    long_orig = 'Longitude do aeroporto de origem'
-    lat_dest = 'Latitude do aeroporto de destino'
-    long_dest = 'Longitude do aeroporto de destino'
-    distancia_km = 'Total em Kilômetros entre o local Origem e Destino'
+    num_voo = {'tipo': str, 'descricao': 'Número do voo'}
+    companhia_aerea = {'tipo': str, 'descricao': 'Nome da companhia aérea'}
+    codigo_tipo_linha = {'tipo': str, 'descricao': 'Código do tipo de linha (internacional)'}
+    aeroporto_origem = {'tipo': str, 'descricao': 'Código do aeroporto de origem'}
+    cidade_origem = {'tipo': str, 'descricao': 'Cidade de origem'}
+    estado_origem = {'tipo': str, 'descricao': 'Estado de origem'}
+    pais_origem = {'tipo': str, 'descricao': 'País de origem'}
+    lat_orig = {'tipo': float, 'descricao': 'Latitude do aeroporto de origem'}
+    long_orig = {'tipo': float, 'descricao': 'Longitude do aeroporto de origem'}
+    partida_prevista = {'tipo': datetime, 'descricao': 'Horário previsto de partida'}
+    partida_real = {'tipo': datetime, 'descricao': 'Horário real de partida'}
+    aeroporto_destino = {'tipo': str, 'descricao': 'Código do aeroporto de destino'}
+    cidade_destino = {'tipo': str, 'descricao': 'Cidade de destino'}
+    estado_destino = {'tipo': str, 'descricao': 'Estado de destino'}
+    pais_destino = {'tipo': str, 'descricao': 'País de destino'}
+    lat_dest = {'tipo': float, 'descricao': 'Latitude do aeroporto de destino'}
+    long_dest = {'tipo': float, 'descricao': 'Longitude do aeroporto de destino'}
+    chegada_prevista = {'tipo': datetime, 'descricao': 'Horário previsto de chegada'}
+    chegada_real = {'tipo': datetime, 'descricao': 'Horário real de chegada'}
+    distancia_km = {'tipo': float, 'descricao': 'Total em quilômetros entre o local de origem e destino'}
+    situacao_voo = {'tipo': str, 'descricao': 'Situação do voo (realizado, cancelado, etc)'}
+    codigo_justificativa = {'tipo': str, 'descricao': 'Código de justificativa (caso o voo tenha sido cancelado)'}
 
     @staticmethod
-    def get(nome_coluna):
+    def nomes_colunas() -> List[str]:
         """
-        Método estático para recuperar a descrição da coluna a partir do nome.
-
-        :param nome_coluna: Nome da coluna.
-        :return: Descrição da coluna.
+        Retorna uma lista com os nomes de todas as colunas definidas como enums na classe Utils.
+        
+        Returns:
+            Uma lista com os nomes de todas as colunas definidas como enums na classe Utils.
         """
-        return DescricaoColuna[nome_coluna].value if nome_coluna in DescricaoColuna.__members__ else None
-    
-class DescricaoTipo(Enum):
-    """
-    Classe de Enums para armazenar os tipos das colunas do DataFrame.
-    """
-    voos = str
-    companhia_aerea = str
-    codigo_tipo_linha = str
-    partida_prevista = datetime
-    partida_real = datetime
-    chegada_prevista = datetime
-    chegada_real = datetime
-    situacao_voo = str
-    codigo_justificativa = str
-    aeroporto_origem = str
-    cidade_origem = str
-    estado_origem = str
-    pais_origem = str
-    aeroporto_destino = str
-    cidade_destino = str
-    estado_destino = str
-    pais_destino = str
-    lat_orig = int
-    long_orig = int
-    lat_dest = int
-    long_dest = int
-    distancia_km = float
+        return list(map(lambda coluna: coluna.name, Utils))
 
     @staticmethod
-    def get(nome_coluna):
+    def tipo_coluna(nome_coluna: str) -> str | None:
         """
-        Método estático para recuperar a descrição da coluna a partir do nome.
+        Retorna o tipo de dados da coluna especificada.
 
-        :param nome_coluna: Nome da coluna.
-        :return: Descrição da coluna.
+        Args:
+        nome_coluna (str): O nome da coluna.
+
+        Returns:
+        O tipo de dados da coluna especificada.
         """
-        return DescricaoTipo[nome_coluna].value if nome_coluna in DescricaoTipo.__members__ else None
-
-class Utils:
+        return Utils.__dict__[nome_coluna].__dict__['_value_']['tipo']
     
+    @staticmethod
+    def descricao_coluna(nome_coluna: str) -> str | None:
+        """
+        Retorna a descrição da coluna especificada.
+
+        Args:
+        nome_coluna (str): O nome da coluna.
+
+        Returns:
+        A descrição da coluna especificada.
+        """
+        return Utils.__dict__[nome_coluna].__dict__['_value_']['descricao']
+
     @staticmethod
     def calcular_distancia_km(lat_orig:float, long_orig:float, lat_dest:float, long_dest:float) -> float:
         """
@@ -117,19 +105,19 @@ class Utils:
 
         # Retorna a distância em km
         return R * c
-
+    
     @staticmethod
-    def formatar_data_hora(dataframe: pd.DataFrame, coluna: str) -> pd.Series:
+    def formatar_colunas_datetime(dataframe: pd.DataFrame, nome_coluna: str) -> pd.DataFrame:
         """
-        Formata uma coluna de um DataFrame como uma string no formato '%d/%m/%Y %H:%M:%S'.
+        Formata uma coluna de um DataFrame contendo datas/horas como uma string no formato '%d/%m/%Y %H:%M:%S'.
 
         Args:
             dataframe: O DataFrame contendo a coluna a ser formatada.
-            coluna: O nome da coluna a ser formatada.
+            nome_coluna: O nome da coluna a ser formatada.
 
         Returns:
-            A coluna formatada como uma Series do pandas.
+            O DataFrame com a coluna formatada.
         """
-        dataframe[coluna] = pd.to_datetime(dataframe[coluna])
-        dataframe[coluna] = dataframe[coluna].dt.strftime('%d/%m/%Y %H:%M:%S')
-        return dataframe[coluna]
+        dataframe[nome_coluna] = pd.to_datetime(dataframe[nome_coluna])
+        dataframe[nome_coluna] = dataframe[nome_coluna].dt.strftime('%d/%m/%Y %H:%M:%S')
+        return dataframe
