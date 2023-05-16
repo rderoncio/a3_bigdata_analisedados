@@ -1,6 +1,6 @@
 from enum import Enum
 from datetime import datetime
-from typing import List
+from typing import List, Dict
 import numpy as np
 import pandas as pd
 
@@ -36,6 +36,8 @@ class Utils(Enum):
     
     situacao_voo = {'tipo': str, 'descricao': 'Situação do voo (realizado, cancelado, etc)'}
     codigo_justificativa = {'tipo': str, 'descricao': 'Código de justificativa (caso o voo tenha sido cancelado)'}
+    justificativa_atraso = {'tipo': str, 'descricao': 'Informação e correlata à justificativa no atraso do voo'}
+    justificativa_cancelamento = {'tipo': str, 'descricao': 'Informação e correlata à justificativa do cancelamento do voo'}
 
     @staticmethod
     def nomes_colunas() -> List[str]:
@@ -155,3 +157,36 @@ class Utils(Enum):
             return 'N'
         else:
             return 'S'
+
+    @staticmethod
+    def motivo_atraso(motivo: str) -> str:
+        atrasos = {
+            'AEROPORTO COM RESTRICOES OPERACIONAIS': 'Restrições operacionais no aeroporto',
+            'ALTERNATIVA ABAIXO DOS LIMITES': 'Alternativa abaixo dos limites',
+            'ANTECIPACAO DE HORARIO AUTORIZADA - ESPECIFICO VOOS INTERNACIONAIS': 'Antecipação de horário',
+            'ATRASO AEROPORTO DE ALTERNATIVA - CONDICOES METEOROLOGICAS': 'Condições meteorológicas',
+            'ATRASO AEROPORTO DE ALTERNATIVA - ORDEM TECNICA': 'Ordem técnica',
+            'ATRASOS NAO ESPECIFICOS - OUTROS': 'Outros',
+            'CONEXAO AERONAVE/VOLTA - VOO DE IDA NAO PENALIZADO AEROPORTO INTERDITADO': 'Interdição do aeroporto',
+            'CONEXAO AERONAVE/VOLTA - VOO DE IDA NAO PENALIZADO CONDICOES METEOROLOGICAS': 'Condições meteorológicas',
+            'CONEXAO DE AERONAVE': 'Conexão de aeronave',
+            'DEFEITOS DA AERONAVE': 'Defeitos da aeronave',
+            'DEGELO E REMOCAO DE NEVE E/OU LAMA EM AERONAVE': 'Degelo/Limpeza',
+            'INCLUSAO DE ETAPA (AEROPORTO DE ALTERNATIVA) DEVIDO A UM VOO ESPECIAL RETORNO': 'Inclusão de etapa',
+            'OPERACAO DE VOO COM MAIS DE 04 HORAS DE ATRASO PANE AERONAVE': 'Pane na aeronave',
+            'TROCA DE AERONAVE': 'Troca de aeronave'
+        }
+
+        return atrasos.get(motivo, '')
+
+    @staticmethod
+    def motivo_cancelamento(motivo: str) -> str:
+        cancelamentos = {
+            'CANCELAMENTO - CONEXAO AERONAVE/VOLTA - VOO DE IDA CANCELADO - AEROPORTO INTERDITADO': 'Interdição do aeroporto',
+            'CANCELAMENTO - CONEXAO AERONAVE/VOLTA - VOO DE IDA CANCELADO - CONDICOES METEOROLOGICAS': 'Condições meteorológicas',
+            'CANCELAMENTO POR MOTIVOS TECNICOS - OPERACIONAIS': 'Motivos técnicos-operacionais',
+            'FALTA PAX COM PASSAGEM MARCADA - ( APENAS PARA AS LINHAS AEREAS DOMESTICAS REGIONAIS)': 'Falta de passageiros com passagem marcada',
+            'PROGRAMADO - FERIADO NACIONAL': 'Feriado nacional'
+        }
+
+        return cancelamentos.get(motivo, '')
