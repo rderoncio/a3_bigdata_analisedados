@@ -1,8 +1,10 @@
 from enum import Enum
 from datetime import datetime
-from typing import List, Dict
+from typing import List
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import mplcyberpunk
 
 class Utils(Enum):
     """
@@ -190,3 +192,109 @@ class Utils(Enum):
         }
 
         return cancelamentos.get(motivo, '')
+
+    @staticmethod
+    def nome_companhia_aerea_normalizado(companhia_aerea: str) -> str:
+        """
+        Retorna o nome normalizado de uma companhia aérea.
+
+        Parâmetros:
+            - companhia_aerea (str): O nome da companhia aérea.
+
+        Retorna:
+            str: O nome normalizado da companhia aérea, se estiver presente na lista de normalizados.
+                Caso contrário, retorna o próprio nome sem alterações.
+
+        Exemplo:
+            nome_companhia_aerea_normalizado('AEROLINEAS ARGENTINAS')
+            Saída: 'Aerolineas Argentinas'
+        """
+        normalizados = [
+                {'AEROLINEAS ARGENTINAS': 'Aerolineas Argentinas'},
+                {'AIR CANADA': 'Air Canada'},
+                {'AIR CHINA': 'Air China'},
+                {'AIR EUROPA S/A': 'Air Europa'},
+                {'AIR FRANCE': 'Air France'},
+                {'AIRES - LAN COLOMBIA': 'Aires'},
+                {'ALITALIA': 'Alitalia'},
+                {'AMERICAN AIRLINES INC': 'American Airlines'},
+                {'AUSTRAL LINEAS AÉREAS CIELOS DEL SUR S.A': 'Austral Lineas Aereas'},
+                {'AVIANCA': 'Avianca'},
+                {'AVIANCA BRASIL': 'Avianca Brasil'},
+                {'AZUL': 'Azul'},
+                {'BOLIVIANA DE AVIACION': 'Boliviana de Aviacion'},
+                {'BRITISH AIRWAYS PLC': 'British Airways'},
+                {'CONDOR FLUGDINST': 'Condor Flugdinst'},
+                {'COPA -COMPANIA PANAMENA DE AVIACION': 'Copa'},
+                {'DELTA AIRLINES': 'Delta Airlines'},
+                {'EDELWEISS': 'Edelweiss'},
+                {'EMIRATES': 'Emirates'},
+                {'EMPRESA DE TRANSPORTES AEREOS DE CABO VERDE S.A.': 'Empresa de Transportes Aereos de Cabo Verde'},
+                {'ETHIOPIAN': 'Ethiopian'},
+                {'ETIHAD': 'Etihad'},
+                {'FLYWAYS': 'Flyways'},
+                {'GOL': 'Gol'},
+                {'IBERIA': 'Iberia'},
+                {'INSELAIR': 'InselAir'},
+                {'KLM ROYAL DUTCH AIRLINES': 'KLM Royal Dutch Airlines'},
+                {'KOREAN AIRLINES': 'Korean Airlines'},
+                {'LAN ARGENTINA S/A': 'LAN Argentina'},
+                {'LAN CHILE': 'LAN Chile'},
+                {'LAN PERU S/A': 'LAN Peru'},
+                {'LUFTHANSA': 'Lufthansa'},
+                {'MAP LINHAS AEREAS': 'MAP Linhas Aereas'},
+                {'MERIDIANA': 'Meridiana'},
+                {'NAO INFORMADO': 'Nao Informado'},
+                {'PASSAREDO': 'Passaredo'},
+                {'QATAR AIRWAYS': 'Qatar Airways'},
+                {'ROYAL AIR MAROC': 'Royal Air Maroc'},
+                {'SINGAPORE AIRLINES': 'Singapore Airlines'},
+                {'SOUTH AFRICAN AIRWAYS': 'South African Airways'},
+                {'SURINAM AIRWAYS': 'Surinam Airways'},
+                {'SWISSAIR': 'Swissair'},
+                {'TAAG LINHAS AEREAS DE ANGOLA': 'TAAG Linhas Aereas de Angola'},
+                {'TAM': 'TAM'},
+                {'TAM TRANSP. AR. DEL. MERCOS': 'TAM Transp. Ar. Del. Mercos'},
+                {'TAP AIR PORTUGAL': 'TAP Air Portugal'},
+                {'TOTAL': 'Total'},
+                {'TRASAMERICA  AIRLINES-TACAPERU': 'Trasamerica Airlines-TACA Peru'},
+                {'TURKISH AIRLINES INC.': 'Turkish Airlines'},
+                {'UNITED AIRLINES': 'United Airlines'}
+            ]
+        
+        for item in normalizados:
+            if companhia_aerea in item:
+                return item[companhia_aerea]
+        return companhia_aerea
+
+    @staticmethod
+    def plot_configurado(z_titulo:str, x_label:str, y_label:str, size:tuple=(25,5)) -> dict:
+        plt_configurado = plt
+        plt_configurado.subplots(figsize=size)
+
+        fig, ax = plt_configurado
+
+        ax.set_title(z_titulo)
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(y_label) 
+
+        # Remover bordas do gráfico
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+
+        ax.set_xticklabels([])
+
+        plt.style.use("cyberpunk")
+        mplcyberpunk.make_lines_glow()
+        mplcyberpunk.add_underglow()
+
+        return plt_configurado
+    
+
+title = 'Estatísticas de Voos por Companhia Aérea (Regional)'
+xlabel = 'Companhia Aérea'
+ylabel = 'Voos'
+
+fig, ax = Utils.plot_configurado(title, xlabel, ylabel)
