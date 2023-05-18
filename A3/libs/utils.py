@@ -268,26 +268,33 @@ class Utils(Enum):
         return companhia_aerea
 
 class Plot:
+    plt.style.use('cyberpunk')
+    mplcyberpunk.add_glow_effects()
+
     @staticmethod
-    def plotar_voos_por_cia_area_tipo_linha(dataframe:pd.DataFrame) -> None:
-        fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+    def barh_voos_por_cia_area_tipo_linha(dataframe:pd.DataFrame) -> None:
+        
+        fig, axs = plt.subplots(1, 3, figsize=(30, 10))
+        fontsize = 16 if len(dataframe) <= 8 else 8
 
         for plot, col in enumerate(['voos_realizados', 'voos_com_atraso', 'voos_cancelados']):
-
             axs[plot].barh(dataframe['companhia_aerea'], dataframe[col])
             axs[plot].set_title(col.replace('_', ' ').title())
             axs[plot].set_facecolor('none')
+            axs[plot].grid(False)
+
+            axs[plot].tick_params(axis='y', labelsize=fontsize)
 
             for spine in ['top', 'right', 'bottom', 'left']:
                 axs[plot].spines[spine].set_visible(False)
 
-            axs[plot].tick_params(axis='both', which='both', bottom=False, top=False, left=False, right=False, labelbottom=False, labelleft=False)
+            if plot > 0:
+                axs[plot].tick_params(axis='both', which='both', bottom=False, top=False, left=False, right=False, labelbottom=False, labelleft=False)
 
             for i, v in enumerate(dataframe[col]):
-                axs[plot].text(v + 3, i, f'{v:,.0f}', ha='left', va='center')
-
-        plt.tight_layout()
-        plt.show()
+                if v >= 1:
+                    axs[plot].text(v + 3, i, f'{v:,.0f}', ha='left', va='center', fontsize=fontsize)
+                    axs[plot].set_xticks([])
 
 class Fligths:
     @staticmethod
