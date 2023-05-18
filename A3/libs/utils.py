@@ -1,6 +1,6 @@
 from enum import Enum
 from datetime import datetime
-from typing import List
+from typing import List, Dict
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -267,34 +267,55 @@ class Utils(Enum):
                 return item[companhia_aerea]
         return companhia_aerea
 
+class Plot:
     @staticmethod
-    def plot_configurado(z_titulo:str, x_label:str, y_label:str, size:tuple=(25,5)) -> dict:
-        plt_configurado = plt
-        plt_configurado.subplots(figsize=size)
+    def plotar_voos_por_cia_area_tipo_linha(dataframe:pd.DataFrame) -> None:
+        fig, axs = plt.subplots(1, 3, figsize=(15, 5))
 
-        fig, ax = plt_configurado
+        for plot, col in enumerate(['voos_realizados', 'voos_com_atraso', 'voos_cancelados']):
 
-        ax.set_title(z_titulo)
-        ax.set_xlabel(x_label)
-        ax.set_ylabel(y_label) 
+            axs[plot].barh(dataframe['companhia_aerea'], dataframe[col])
+            axs[plot].set_title(col.replace('_', ' ').title())
+            axs[plot].set_facecolor('none')
 
-        # Remover bordas do gráfico
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
-        ax.spines['left'].set_visible(False)
+            for spine in ['top', 'right', 'bottom', 'left']:
+                axs[plot].spines[spine].set_visible(False)
 
-        ax.set_xticklabels([])
+            axs[plot].tick_params(axis='both', which='both', bottom=False, top=False, left=False, right=False, labelbottom=False, labelleft=False)
 
-        plt.style.use("cyberpunk")
-        mplcyberpunk.make_lines_glow()
-        mplcyberpunk.add_underglow()
+            for i, v in enumerate(dataframe[col]):
+                axs[plot].text(v + 3, i, f'{v:,.0f}', ha='left', va='center')
 
-        return plt_configurado
-    
+        plt.tight_layout()
+        plt.show()
 
-title = 'Estatísticas de Voos por Companhia Aérea (Regional)'
-xlabel = 'Companhia Aérea'
-ylabel = 'Voos'
+class Fligths:
+    @staticmethod
+    def voos_por_cia_area_groupby(dataframe: pd.DataFrame, ascending:bool=False, result_reset_index:bool = False):
+        df = dataframe.groupby(['companhia_aerea', 'situacao_voo', 'codigo_tipo_linha', 'justificativa_atraso']).agg(
+            voos_realizados=('situacao_voo', lambda x: np.where((x == 'Realizado') & (dataframe['justificativa_atraso'] == ''), 1, 0).sum()),
+            voos_com_atraso=('situacao_voo', lambda x: np.where((x == 'Realizado') & (dataframe['justificativa_atraso'] != ''), 1, 0).sum()),
+            voos_cancelados=('situacao_voo', lambda x: np.where(x == 'Cancelado', 1, 0).sum())
+        ).sort_values(
+            by=['voos_realizados', 'voos_com_atraso', 'voos_cancelados'],
+            ascending=ascending)
+        
+        if result_reset_index:
+            return df.reset_index()
+        
+        return df
 
-fig, ax = Utils.plot_configurado(title, xlabel, ylabel)
+    @staticmethod
+    def voos_por_tipo_linha_groupby(dataframe: pd.DataFrame, tipo_linha:str, ascending:bool=False, result_reset_index:bool = False):
+        df = dataframe.reset_index()
+        df = df[df['codigo_tipo_linha'] == tipo_linha]
+        df = df.groupby('companhia_aerea').agg(
+            voos_realizados=('voos_realizados', 'sum'),
+            voos_com_atraso=('voos_com_atraso', 'sum'),
+            voos_cancelados=('voos_cancelados', 'sum')
+        ).sort_values(by=['voos_realizados', 'voos_com_atraso', 'voos_cancelados'], ascending=ascending)
+
+        if result_reset_index:
+            return df.reset_index()
+        
+        return df
