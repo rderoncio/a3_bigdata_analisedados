@@ -4,7 +4,6 @@ from typing import List, Dict
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import mplcyberpunk
 
 class Utils(Enum):
     """
@@ -13,6 +12,9 @@ class Utils(Enum):
     num_voo = {'tipo': str, 'descricao': 'Número do voo'}
     companhia_aerea = {'tipo': str, 'descricao': 'Nome da companhia aérea'}
     codigo_tipo_linha = {'tipo': str, 'descricao': 'Código do tipo de linha (internacional)'}
+
+    rota = {'tipo': str, 'descricao': 'Origem x Destino'}
+    periodo_ferias = {'tipo': str, 'descricao': 'Contém o mês condizente a um período de férias (Janeiro, Julho ou Dezembro)'}
 
     aeroporto_origem = {'tipo': str, 'descricao': 'Código do aeroporto de origem'}
     cidade_origem = {'tipo': str, 'descricao': 'Cidade de origem'}
@@ -131,6 +133,36 @@ class Utils(Enum):
         dataframe[nome_coluna] = pd.to_datetime(dataframe[nome_coluna])
         dataframe[nome_coluna] = dataframe[nome_coluna].dt.strftime('%d/%m/%Y %H:%M:%S')
         return dataframe
+
+    @staticmethod
+    def atribuir_periodo_ferias(data: pd.Series) -> pd.Series:
+        """
+        Atribui o valor do período de férias com base no mês da data fornecida.
+
+        Parâmetros:
+        - data: pd.Series
+            Coluna do tipo pd.Series contendo as datas formatadas no formato '%d/%m/%Y %H:%M:%S' para análise do mês.
+
+        Retorna:
+        - pd.Series
+            Coluna do tipo pd.Series contendo os valores correspondentes ao período de férias ('janeiro', 'julho' ou 'dezembro')
+            se o mês da data fornecida estiver na lista [1, 7, 12]. Caso contrário, retorna uma string vazia.
+
+        Exemplo:
+        >>> atribuir_periodo_ferias(pd.Series(['15/01/2023 10:30:00', '10/02/2023 15:45:00']))
+        0    janeiro
+        1           
+        dtype: object
+        """
+        ferias = {'janeiro': 1, 'julho': 7, 'dezembro': 12}
+        
+        def atribuir_periodo(data):
+            mes = datetime.strptime(data, '%d/%m/%Y %H:%M:%S').month
+            if mes in ferias.values():
+                return next(key for key, value in ferias.items() if value == mes)
+            else:
+                return ''
+        return data.apply(atribuir_periodo)
 
     @staticmethod
     def validar_atraso(situacao: str, dt_prevista: str, dt_real: str) -> str:
@@ -266,63 +298,31 @@ class Utils(Enum):
             if companhia_aerea in item:
                 return item[companhia_aerea]
         return companhia_aerea
-
-class Plot:
-    plt.style.use('cyberpunk')
-    mplcyberpunk.add_glow_effects()
-
+    
     @staticmethod
-    def barh_voos_por_cia_area_tipo_linha(dataframe:pd.DataFrame) -> None:
+    def centralizar_dataframe(dataframe: pd.DataFrame, limit: int | None = 10) -> None:
+        """
+        Centraliza um dataframe exibindo-o com alinhamento centralizado das células.
         
-        fig, axs = plt.subplots(1, 3, figsize=(30, 10))
-        fontsize = 16 if len(dataframe) <= 8 else 8
+        Parâmetros:
+        - dataframe: pandas.DataFrame: O dataframe a ser centralizado.
+        - limit: int | None: Opcional. O número máximo de linhas a serem exibidas. Se None, exibe todas as linhas.
+        
+        Retorna:
+        - pandas.DataFrame
+        
+        """
+        dataframe_limit = dataframe.head(limit) if limit is not None else dataframe
 
-        for plot, col in enumerate(['voos_realizados', 'voos_com_atraso', 'voos_cancelados']):
-            axs[plot].barh(dataframe['companhia_aerea'], dataframe[col])
-            axs[plot].set_title(col.replace('_', ' ').title())
-            axs[plot].set_facecolor('none')
-            axs[plot].grid(False)
+        styled_dataframe = dataframe_limit.style.set_table_styles([
+            dict(selector='th', props=[('text-align', 'center')]), 
+            dict(selector='td', props=[('text-align', 'center')])
+        ])
 
-            axs[plot].tick_params(axis='y', labelsize=fontsize)
-
-            for spine in ['top', 'right', 'bottom', 'left']:
-                axs[plot].spines[spine].set_visible(False)
-
-            if plot > 0:
-                axs[plot].tick_params(axis='both', which='both', bottom=False, top=False, left=False, right=False, labelbottom=False, labelleft=False)
-
-            for i, v in enumerate(dataframe[col]):
-                if v >= 1:
-                    axs[plot].text(v + 3, i, f'{v:,.0f}', ha='left', va='center', fontsize=fontsize)
-                    axs[plot].set_xticks([])
+        return styled_dataframe
+    
+class Plot:
+    pass
 
 class Fligths:
-    @staticmethod
-    def voos_por_cia_area_groupby(dataframe: pd.DataFrame, ascending:bool=False, result_reset_index:bool = False):
-        df = dataframe.groupby(['companhia_aerea', 'situacao_voo', 'codigo_tipo_linha', 'justificativa_atraso']).agg(
-            voos_realizados=('situacao_voo', lambda x: np.where((x == 'Realizado') & (dataframe['justificativa_atraso'] == ''), 1, 0).sum()),
-            voos_com_atraso=('situacao_voo', lambda x: np.where((x == 'Realizado') & (dataframe['justificativa_atraso'] != ''), 1, 0).sum()),
-            voos_cancelados=('situacao_voo', lambda x: np.where(x == 'Cancelado', 1, 0).sum())
-        ).sort_values(
-            by=['voos_realizados', 'voos_com_atraso', 'voos_cancelados'],
-            ascending=ascending)
-        
-        if result_reset_index:
-            return df.reset_index()
-        
-        return df
-
-    @staticmethod
-    def voos_por_tipo_linha_groupby(dataframe: pd.DataFrame, tipo_linha:str, ascending:bool=False, result_reset_index:bool = False):
-        df = dataframe.reset_index()
-        df = df[df['codigo_tipo_linha'] == tipo_linha]
-        df = df.groupby('companhia_aerea').agg(
-            voos_realizados=('voos_realizados', 'sum'),
-            voos_com_atraso=('voos_com_atraso', 'sum'),
-            voos_cancelados=('voos_cancelados', 'sum')
-        ).sort_values(by=['voos_realizados', 'voos_com_atraso', 'voos_cancelados'], ascending=ascending)
-
-        if result_reset_index:
-            return df.reset_index()
-        
-        return df
+    pass
