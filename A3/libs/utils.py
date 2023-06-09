@@ -332,20 +332,3 @@ class AnacVoos:
     total_arquivos = 0
     total_registros = 0
     dados_solidos = False
-
-    @classmethod
-    def filtrar_tipo_linha(cls, codigo_tipo_linha):
-        """
-        Filtra os voos com base no código do tipo de linha e aeroporto de destino.
-
-        Parâmetros:
-        - codigo_tipo_linha: Código do tipo de linha a ser filtrado (por exemplo, 'Nacional', 'Internacional')
-        - aeroporto_destino: Aeroporto de destino a ser filtrado
-
-        Retorna:
-        - DataFrame filtrado com os voos correspondentes ao código do tipo de linha e aeroporto de destino fornecidos.
-        """
-        return cls.dados[cls.dados['codigo_tipo_linha'].isin([codigo_tipo_linha])]
-
-        voos_filtrados = cls.dados[(cls.dados['codigo_tipo_linha'] == codigo_tipo_linha) & (cls.dados['aeroporto_destino'] == aeroporto_destino)]
-        return voos_filtrados
