@@ -16,6 +16,8 @@ class Utils(Enum):
     rota = {'tipo': str, 'descricao': 'Origem x Destino'}
     periodo_ferias = {'tipo': str, 'descricao': 'Contém o mês condizente a um período de férias (Janeiro, Julho ou Dezembro)'}
 
+    dia_semana = {'tipo': str, 'descricao': 'Contém o dia da semana para data de partida'}
+
     aeroporto_origem = {'tipo': str, 'descricao': 'Código do aeroporto de origem'}
     cidade_origem = {'tipo': str, 'descricao': 'Cidade de origem'}
     estado_origem = {'tipo': str, 'descricao': 'Estado de origem'}
@@ -321,6 +323,34 @@ class Utils(Enum):
 
         return styled_dataframe
     
+    @staticmethod
+    def atribuir_dia_semana(dia_semana: str) -> str:
+        """
+        Atribui o nome do dia da semana em português com base no dia da semana em inglês fornecido.
+
+        Parâmetros:
+            dia_semana (str): O nome do dia da semana em inglês.
+
+        Retorna:
+            str: O nome do dia da semana em português.
+
+        Exemplo:
+            >>> atribuir_dia_semana('Monday')
+            'segunda-feira'
+        """
+        dias_semana = {
+            'Monday': 'segunda-feira', 
+            'Tuesday': 'terça-feira', 
+            'Wednesday': 'quarta-feira', 
+            'Thursday': 'quinta-feira', 
+            'Friday': 'sexta-feira', 
+            'Saturday': 'sábado', 
+            'Sunday': 'domingo'
+        }
+        
+        return dias_semana[dia_semana]
+
+
 class Plot:
     pass
 
