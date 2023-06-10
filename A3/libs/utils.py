@@ -52,7 +52,7 @@ class Utils(Enum):
         return list(map(lambda coluna: coluna.name, Utils))
 
     @staticmethod
-    def tipo_coluna(nome_coluna: str) -> str | None:
+    def tipo_coluna(nome_coluna: str) -> str:
         """
         Retorna o tipo de dados da coluna especificada.
 
@@ -65,7 +65,7 @@ class Utils(Enum):
         return Utils.__dict__[nome_coluna].__dict__['_value_']['tipo']
     
     @staticmethod
-    def descricao_coluna(nome_coluna: str) -> str | None:
+    def descricao_coluna(nome_coluna: str) -> str:
         """
         Retorna a descrição da coluna especificada.
 
