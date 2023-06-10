@@ -4,6 +4,7 @@ from typing import List, Dict
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import mplcyberpunk
 
 class Utils(Enum):
     """
@@ -352,7 +353,27 @@ class Utils(Enum):
 
 
 class Plot:
-    pass
+    
+    @staticmethod
+    def periodo_ferias(dataframe: pd.DataFrame, titulo: str, ylabel: str, legenda: List, grid: bool = False, show: bool = True, font_size: int = 10, contexto: str = 'cyberpunk'):
+        plt.rcParams['font.size'] = font_size
+
+        with plt.style.context(contexto):
+            ax = dataframe.plot.barh(
+                x='codigo_tipo_linha',
+                y=['realizados_s_atraso', 'realizados_c_atraso', 'cancelados'],
+                xticks=[]
+            )
+            plt.title(titulo)
+            plt.ylabel(ylabel)
+            plt.legend(legenda)
+            plt.grid(grid)
+
+            for p in ax.patches:
+                ax.annotate(f'{p.get_width():.0f}', (p.get_x() + p.get_width(), p.get_y()), xytext=(10, 5), textcoords='offset points', ha='left')
+
+            if show:
+                plt.show()
 
 class AnacVoos:
     """Classe que representa dados de voos da ANAC (Agência Nacional de Aviação Civil)."""
@@ -362,3 +383,11 @@ class AnacVoos:
     total_arquivos = 0
     total_registros = 0
     dados_solidos = False
+    tempo_execucao = 0
+
+    @classmethod
+    @property
+    def periodo_ferias_distinct(cls):
+        if cls.dados != None and cls.dados_solidos:
+            return cls.dados['periodo_ferias'].unique()
+        return []
