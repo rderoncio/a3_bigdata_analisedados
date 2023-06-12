@@ -1,6 +1,7 @@
 from enum import Enum
 from datetime import datetime
-from typing import List, Dict
+import time
+from typing import Any, List, Dict
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -355,25 +356,130 @@ class Utils(Enum):
 class Plot:
     
     @staticmethod
-    def periodo_ferias(dataframe: pd.DataFrame, titulo: str, ylabel: str, legenda: List, grid: bool = False, show: bool = True, font_size: int = 10, contexto: str = 'cyberpunk'):
-        plt.rcParams['font.size'] = font_size
+    def periodo_ferias(dataframe: pd.DataFrame, periodo_ferias: List[str], grid: bool, context: str, figsize, suptitle: str) -> Any:
+        """
+        Gera gráficos de barras para os períodos de férias especificados.
 
-        with plt.style.context(contexto):
-            ax = dataframe.plot.barh(
-                x='codigo_tipo_linha',
-                y=['realizados_s_atraso', 'realizados_c_atraso', 'cancelados'],
-                xticks=[]
-            )
-            plt.title(titulo)
-            plt.ylabel(ylabel)
-            plt.legend(legenda)
-            plt.grid(grid)
+        Args:
+            dataframe (pd.DataFrame): O dataframe contendo os dados.
+            periodo_ferias (List[str]): Uma lista com os períodos de férias a serem plotados.
+            grid (bool): Indica se as linhas de grade devem ser exibidas nos gráficos.
+            context (str): O estilo de contexto do matplotlib a ser aplicado aos gráficos.
+            figsize (Tuple[str]): Uma tupla indicando as dimensões da figura dos gráficos.
+            suptitle (str): O título da figura principal que envolve todos os gráficos.
 
-            for p in ax.patches:
-                ax.annotate(f'{p.get_width():.0f}', (p.get_x() + p.get_width(), p.get_y()), xytext=(10, 5), textcoords='offset points', ha='left')
+        Returns:
+            Any: Os objetos de gráfico gerados.
+        """
+        with plt.style.context(context):
+            fig = plt.figure(figsize=figsize)
+            
+            ax1 = plt.subplot2grid((2, 3), (0, 0))
+            ax2 = plt.subplot2grid((2, 3), (0, 1))
+            ax3 = plt.subplot2grid((2, 3), (0, 2))
 
-            if show:
-                plt.show()
+            # Dados para os gráficos de barras
+            periodo = periodo_ferias[0]
+            df = dataframe.query("periodo_ferias == @periodo").reset_index(drop=True)
+            bar_values = df['codigo_tipo_linha']
+            bar_heights_1 = df['realizados_s_atraso']
+            bar_heights_2 = df['realizados_c_atraso']
+            bar_heights_3 = df['cancelados']
+            bar_width = 0.2
+
+            bar_pos_1 = np.arange(len(bar_values))
+            bar_pos_2 = bar_pos_1 + bar_width + 0.1
+            bar_pos_3 = bar_pos_1 + 2*(bar_width + 0.1)
+
+            # Certifique-se de que as barras estejam deslocadas uma da outra
+            ax1.barh(y=bar_pos_1, width=bar_heights_1, height=bar_width, label='Realizados S/Atraso')
+            ax1.barh(y=bar_pos_2, width=bar_heights_2, height=bar_width, label='Realizados C/Atraso')
+            ax1.barh(y=bar_pos_3, width=bar_heights_3, height=bar_width, label='Cancelados')
+            ax1.set_yticks(bar_pos_2)
+            ax1.set_yticklabels(bar_values)
+            ax1.set_xticks([])
+            ax1.grid(grid)
+            ax1.set_title(f"Período de {periodo.title()}", fontsize=14)
+
+            # Adicionar totais acima das barras 'top', 'bottom', 'center', 'baseline', 'center_baseline'
+            for i, v in enumerate(bar_heights_1):
+                ax1.annotate(str(v), xy=(v + 0.2, bar_pos_1[i] + bar_width/2), xytext=(5, 0), textcoords="offset points", color='white', ha='left', va='top')
+
+            for i, v in enumerate(bar_heights_2):
+                ax1.annotate(str(v), xy=(v + 0.2, bar_pos_2[i] + bar_width/2), xytext=(5, 0), textcoords="offset points", color='white', ha='left', va='top')
+
+            for i, v in enumerate(bar_heights_3):
+                ax1.annotate(str(v), xy=(v + 0.2, bar_pos_3[i] + bar_width/2), xytext=(5, 0), textcoords="offset points", color='white', ha='left', va='top')
+
+            # Dados para os gráficos de barras
+            periodo = periodo_ferias[0]
+            df = dataframe.query("periodo_ferias == @periodo").reset_index(drop=True)
+            bar_values = df['codigo_tipo_linha']
+            bar_heights_1 = df['realizados_s_atraso']
+            bar_heights_2 = df['realizados_c_atraso']
+            bar_heights_3 = df['cancelados']
+            bar_width = 0.2
+
+            bar_pos_1 = np.arange(len(bar_values))
+            bar_pos_2 = bar_pos_1 + bar_width + 0.1
+            bar_pos_3 = bar_pos_1 + 2*(bar_width + 0.1)
+
+            # Certifique-se de que as barras estejam deslocadas uma da outra
+            ax2.barh(y=bar_pos_1, width=bar_heights_1, height=bar_width, label='Realizados S/Atraso')
+            ax2.barh(y=bar_pos_2, width=bar_heights_2, height=bar_width, label='Realizados C/Atraso')
+            ax2.barh(y=bar_pos_3, width=bar_heights_3, height=bar_width, label='Cancelados')
+            ax2.set_yticks(bar_pos_2)
+            ax2.set_yticklabels([])
+            ax2.set_xticks([])  # Remove os valores do eixo x
+            ax2.grid(grid)
+            ax2.set_title(f"Período de {periodo.title()}", fontsize=14)
+
+            # Adicionar totais acima das barras 'top', 'bottom', 'center', 'baseline', 'center_baseline'
+            for i, v in enumerate(bar_heights_1):
+                ax2.annotate(str(v), xy=(v + 0.2, bar_pos_1[i] + bar_width/2), xytext=(5, 0), textcoords="offset points", color='white', ha='left', va='top')
+
+            for i, v in enumerate(bar_heights_2):
+                ax2.annotate(str(v), xy=(v + 0.2, bar_pos_2[i] + bar_width/2), xytext=(5, 0), textcoords="offset points", color='white', ha='left', va='top')
+
+            for i, v in enumerate(bar_heights_3):
+                ax2.annotate(str(v), xy=(v + 0.2, bar_pos_3[i] + bar_width/2), xytext=(5, 0), textcoords="offset points", color='white', ha='left', va='top')
+
+            # Dados para os gráficos de barras
+            periodo = periodo_ferias[0]
+            df = dataframe.query("periodo_ferias == @periodo").reset_index(drop=True)
+            bar_values = df['codigo_tipo_linha']
+            bar_heights_1 = df['realizados_s_atraso']
+            bar_heights_2 = df['realizados_c_atraso']
+            bar_heights_3 = df['cancelados']
+            bar_width = 0.2
+
+            bar_pos_1 = np.arange(len(bar_values))
+            bar_pos_2 = bar_pos_1 + bar_width + 0.1
+            bar_pos_3 = bar_pos_1 + 2*(bar_width + 0.1)
+
+            # Certifique-se de que as barras estejam deslocadas uma da outra
+            ax3.barh(y=bar_pos_1, width=bar_heights_1, height=bar_width, label='Realizados S/Atraso')
+            ax3.barh(y=bar_pos_2, width=bar_heights_2, height=bar_width, label='Realizados C/Atraso')
+            ax3.barh(y=bar_pos_3, width=bar_heights_3, height=bar_width, label='Cancelados')
+            ax3.set_yticks(bar_pos_2)
+            ax3.set_yticklabels([])
+            ax3.set_xticks([])
+            ax3.grid(grid)
+            ax3.set_title(f"Período de {periodo.title()}", fontsize=14)
+
+            # Adicionar totais acima das barras 'top', 'bottom', 'center', 'baseline', 'center_baseline'
+            for i, v in enumerate(bar_heights_1):
+                ax3.annotate(str(v), xy=(v + 0.2, bar_pos_1[i] + bar_width/2), xytext=(5, 0), textcoords="offset points", color='white', ha='left', va='top')
+
+            for i, v in enumerate(bar_heights_2):
+                ax3.annotate(str(v), xy=(v + 0.2, bar_pos_2[i] + bar_width/2), xytext=(5, 0), textcoords="offset points", color='white', ha='left', va='top')
+
+            for i, v in enumerate(bar_heights_3):
+                ax3.annotate(str(v), xy=(v + 0.2, bar_pos_3[i] + bar_width/2), xytext=(5, 0), textcoords="offset points", color='white', ha='left', va='top')
+
+            plt.suptitle(suptitle, fontsize=25)
+            plt.legend(["Realizados s/ Atraso", "Realizados c/ Atraso", "Cancelados"], loc='best') 
+            plt.show()
 
 class AnacVoos:
     """Classe que representa dados de voos da ANAC (Agência Nacional de Aviação Civil)."""
@@ -384,10 +490,11 @@ class AnacVoos:
     total_registros = 0
     dados_solidos = False
     tempo_execucao = 0
-
+    
     @classmethod
     @property
     def periodo_ferias_distinct(cls):
-        if cls.dados != None and cls.dados_solidos:
-            return cls.dados['periodo_ferias'].unique()
+        if cls.dados_solidos:
+            periodos = cls.dados[cls.dados['periodo_ferias'] != '']
+            return periodos['periodo_ferias'].unique().tolist()
         return []
