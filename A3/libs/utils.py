@@ -197,6 +197,59 @@ class Utils(Enum):
             return 'S'
 
     @staticmethod
+    def atualizar_situacao_voo(situacao: str, partida_atrasou: str, chegada_atrasou: str) -> str:
+        """
+        Atualiza a situação do voo com base nas informações de atraso de partida e chegada.
+
+        Args:
+            situacao (str): Situação atual do voo.
+            partida_atrasou (str): Indica se houve atraso na partida do voo.
+            chegada_atrasou (str): Indica se houve atraso na chegada do voo.
+
+        Returns:
+            str: Situação atualizada do voo.
+        """
+        if situacao == 'Realizado' and (partida_atrasou == 'S' or chegada_atrasou == 'S'):
+            return 'Realizado Com Atraso'
+        elif situacao == 'Realizado' and partida_atrasou == 'N' and chegada_atrasou == 'N':
+            return 'Realizado Sem Atraso'
+        else:
+            return situacao
+
+    @staticmethod
+    def atualizar_justificativa_atraso(partida_atrasou: str, chegada_atrasou: str, codigo_justificativa: str) -> str:
+        """
+        Atualiza a justificativa de atraso com base nas informações de atraso de partida e chegada.
+
+        Args:
+            partida_atrasou (str): Indica se houve atraso na partida do voo.
+            chegada_atrasou (str): Indica se houve atraso na chegada do voo.
+            codigo_justificativa (str): Código da justificativa de atraso.
+
+        Returns:
+            str: Justificativa de atraso atualizada.
+        """
+        if partida_atrasou == 'S' or chegada_atrasou == 'S':
+            return Utils.motivo_atraso(codigo_justificativa)
+        return ''
+    
+    @staticmethod
+    def atualizar_justificativa_cancelamento(situacao_voo: str, codigo_justificativa: str) -> str:
+        """
+        Atualiza a justificativa de cancelamento com base na situação do voo.
+
+        Args:
+            situacao_voo (str): Situação atual do voo.
+            codigo_justificativa (str): Código da justificativa de cancelamento.
+
+        Returns:
+            str: Justificativa de cancelamento atualizada.
+        """
+        if situacao_voo == 'Cancelado':
+            return Utils.motivo_cancelamento(codigo_justificativa)
+        return ''
+
+    @staticmethod
     def motivo_atraso(motivo: str) -> str:
         atrasos = {
             'AEROPORTO COM RESTRICOES OPERACIONAIS': 'Restrições operacionais no aeroporto',
@@ -352,6 +405,34 @@ class Utils(Enum):
         
         return dias_semana[dia_semana]
 
+    @staticmethod
+    def criar_rota(codigo_tipo_linha, pais_origem, pais_destino, estado_origem, estado_destino, cidade_origem, cidade_destino):
+        """
+        Cria a rota com base no tipo de linha.
+
+        Parâmetros:
+        - codigo_tipo_linha (str): O código do tipo de linha.
+        - pais_origem (str): O país de origem.
+        - pais_destino (str): O país de destino.
+        - estado_origem (str): O estado de origem.
+        - estado_destino (str): O estado de destino.
+        - cidade_origem (str): A cidade de origem.
+        - cidade_destino (str): A cidade de destino.
+
+        Retorna:
+        - str: A rota criada com base no tipo de linha.
+
+        Exemplo de uso:
+        rota = Utils.criar_rota('Nacional', 'Brasil', 'Argentina', 'São Paulo', 'Buenos Aires', 'São Paulo', 'Buenos Aires')
+        print(rota)  # Saída: "São Paulo - Buenos Aires"
+        """
+        if codigo_tipo_linha == 'Internacional':
+            return pais_origem + ' - ' + pais_destino
+        elif codigo_tipo_linha == 'Nacional':
+            return estado_origem + ' - ' + estado_destino
+        else:
+            return cidade_origem + ' - ' + cidade_destino
+
 
 class Plot:
     
@@ -481,6 +562,8 @@ class Plot:
             plt.legend(["Realizados s/ Atraso", "Realizados c/ Atraso", "Cancelados"], loc='best') 
             plt.show()
 
+
+
 class AnacVoos:
     """Classe que representa dados de voos da ANAC (Agência Nacional de Aviação Civil)."""
 
@@ -500,7 +583,38 @@ class AnacVoos:
         return []
     
     @classmethod
-    def get_voos_ferias_tipo_linha(cls, codigo_tipo_linha: str, percentuais: List[List[str]], round: int, reindex: bool) -> pd.DataFrame:
+    def get_voos_ferias_agg(cls, filtrar_periodo_ferias: bool, percentuais, round: int, cols_groupby) -> pd.DataFrame:
+
+        if not cls.dados_solidos:
+            raise ValueError("Os dados não foram carregados ou foram comprometidos na transformação.")
+            
+        if filtrar_periodo_ferias: df = cls.__get_voos_ferias_regras(get_voos_ferias(), cols_groupby)
+        else: df = cls.__get_voos_ferias_regras(AnacVoos.dados, cols_groupby)
+
+        if len(percentuais) > 0:
+            for cols in percentuais:
+                df[cols[0]] = (df[cols[1]] / df['voos']).round(round)
+
+        return df
+    
+    @classmethod
+    def __get_voos_ferias_regras(dataframe: pd.DataFrame, cols_groupby) -> pd.DataFrame:
+        return dataframe.groupby(cols_groupby).agg(
+            voos=(cols_groupby[0], 'size'),
+            realizados_s_atraso=('situacao_voo', lambda x: (x == 'Realizado Sem Atraso').sum()),
+            realizados_c_atraso=('situacao_voo', lambda x: (x == 'Realizado Com Atraso').sum()),
+            cancelados=('situacao_voo', lambda x: (x == 'Cancelado').sum())
+        ).reset_index()
+    
+    @classmethod
+    def get_voos_ferias(cls) -> pd.DataFrame:
+        if not cls.dados_solidos:
+            raise ValueError("Os dados não foram carregados ou foram comprometidos na transformação.")
+
+        return cls.dados[cls.dados['periodo_ferias'] != '']
+
+    @classmethod
+    def get_voos_ferias_tipo_linha(cls, codigo_tipo_linha: str, percentuais: List[List[str]], round: int) -> pd.DataFrame:
         """
         Retorna um DataFrame filtrado pelos voos de férias de acordo com o tipo de linha especificado.
         
@@ -514,7 +628,7 @@ class AnacVoos:
             Um DataFrame filtrado com as colunas especificadas e os percentuais calculados.
         """
         if not cls.dados_solidos:
-            raise ValueError("Os dados não foram carregados.")
+            raise ValueError("Os dados não foram carregados ou foram comprometidos na transformação.")
 
         dataframe: pd.DataFrame = cls.dados
 
@@ -532,8 +646,7 @@ class AnacVoos:
         for cols in percentuais:
             df_filtrado[cols[0]] = (df_filtrado[cols[1]] / df_filtrado['voos']).round(round)
         
-        if reindex:
-            df_filtrado = df_filtrado.reindex(columns=['periodo_ferias', 'rota', 'distancia_media_km', 'voos', 'realizados_s_atraso', 'tx_realizados', 'realizados_c_atraso', 'tx_atrasos', 'cancelados', 'tx_cancelados'])
+        df_filtrado = df_filtrado.reindex(columns=['periodo_ferias', 'rota', 'distancia_media_km', 'voos', 'realizados_s_atraso', 'tx_realizados', 'realizados_c_atraso', 'tx_atrasos', 'cancelados', 'tx_cancelados'])
         
         return df_filtrado
     
