@@ -356,7 +356,7 @@ class Utils(Enum):
 class Plot:
     
     @staticmethod
-    def periodo_ferias(dataframe: pd.DataFrame, periodo_ferias: List[str], grid: bool, context: str, figsize, suptitle: str) -> Any:
+    def periodo_ferias_geral(dataframe: pd.DataFrame, periodo_ferias: List[str], grid: bool, context: str, figsize, suptitle: str) -> Any:
         """
         Gera gráficos de barras para os períodos de férias especificados.
 
@@ -412,7 +412,7 @@ class Plot:
                 ax1.annotate(str(v), xy=(v + 0.2, bar_pos_3[i] + bar_width/2), xytext=(5, 0), textcoords="offset points", color='white', ha='left', va='top')
 
             # Dados para os gráficos de barras
-            periodo = periodo_ferias[0]
+            periodo = periodo_ferias[1]
             df = dataframe.query("periodo_ferias == @periodo").reset_index(drop=True)
             bar_values = df['codigo_tipo_linha']
             bar_heights_1 = df['realizados_s_atraso']
@@ -445,7 +445,7 @@ class Plot:
                 ax2.annotate(str(v), xy=(v + 0.2, bar_pos_3[i] + bar_width/2), xytext=(5, 0), textcoords="offset points", color='white', ha='left', va='top')
 
             # Dados para os gráficos de barras
-            periodo = periodo_ferias[0]
+            periodo = periodo_ferias[2]
             df = dataframe.query("periodo_ferias == @periodo").reset_index(drop=True)
             bar_values = df['codigo_tipo_linha']
             bar_heights_1 = df['realizados_s_atraso']
