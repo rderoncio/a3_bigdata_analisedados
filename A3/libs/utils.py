@@ -493,8 +493,47 @@ class AnacVoos:
     
     @classmethod
     @property
-    def periodo_ferias_distinct(cls):
+    def periodo_ferias(cls):
         if cls.dados_solidos:
             periodos = cls.dados[cls.dados['periodo_ferias'] != '']
             return periodos['periodo_ferias'].unique().tolist()
         return []
+    
+    @classmethod
+    def get_voos_ferias_tipo_linha(cls, codigo_tipo_linha: str, percentuais: List[List[str]], round: int, reindex: bool) -> pd.DataFrame:
+        """
+        Retorna um DataFrame filtrado pelos voos de férias de acordo com o tipo de linha especificado.
+        
+        Parâmetros:
+            - codigo_tipo_linha (str): O tipo de linha dos voos a serem filtrados.
+            - percentuais (List[List[str]]): Uma lista de listas contendo os pares de colunas que serão calculados como percentuais.
+            - round (int): O número de casas decimais para arredondar os percentuais.
+            - reindex (bool): Indica se as colunas do DataFrame devem ser reindexadas na ordem especificada.
+        
+        Retorno:
+            Um DataFrame filtrado com as colunas especificadas e os percentuais calculados.
+        """
+        if not cls.dados_solidos:
+            raise ValueError("Os dados não foram carregados.")
+
+        dataframe: pd.DataFrame = cls.dados
+
+        df_filtrado = dataframe[dataframe['codigo_tipo_linha'] == codigo_tipo_linha] \
+            .groupby(['periodo_ferias', 'rota']) \
+            .agg(
+                distancia_media_km=('distancia_km', 'mean'),
+                voos=('distancia_km', 'size'),
+                realizados_s_atraso=('situacao_voo', lambda x: (x == 'Realizado').sum()),
+                realizados_c_atraso=('partida_atrasou', lambda x: (x == 'S').sum()),
+                cancelados=('situacao_voo', lambda x: (x == 'Cancelado').sum()),
+            ) \
+            .reset_index().sort_values(by=['voos', 'distancia_media_km'], ascending=[False, True])
+        
+        for cols in percentuais:
+            df_filtrado[cols[0]] = (df_filtrado[cols[1]] / df_filtrado['voos']).round(round)
+        
+        if reindex:
+            df_filtrado = df_filtrado.reindex(columns=['periodo_ferias', 'rota', 'distancia_media_km', 'voos', 'realizados_s_atraso', 'tx_realizados', 'realizados_c_atraso', 'tx_atrasos', 'cancelados', 'tx_cancelados'])
+        
+        return df_filtrado
+    
