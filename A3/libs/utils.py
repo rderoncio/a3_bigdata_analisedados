@@ -1,6 +1,5 @@
 from enum import Enum
 from datetime import datetime
-import time
 from typing import Any, Callable, List, Dict, Tuple
 import numpy as np
 import pandas as pd
@@ -37,6 +36,8 @@ class Utils(Enum):
     partida_real = {'tipo': datetime, 'descricao': 'Horário real de partida'}
     partida_atrasou = {'tipo': bool,
                        'descricao': 'Houve atraso na partida do voo?'}
+    tempo_atraso_partida = {'tipo': str,
+                            'descricao': 'Tempo total do atraso da partida.'}
 
     aeroporto_destino = {'tipo': str,
                          'descricao': 'Código do aeroporto de destino'}
@@ -51,6 +52,8 @@ class Utils(Enum):
     chegada_real = {'tipo': datetime, 'descricao': 'Horário real de chegada'}
     chegada_atrasou = {'tipo': bool,
                        'descricao': 'Houve atraso na chegada do voo?'}
+    tempo_atraso_chegada = {'tipo': str,
+                            'descricao': 'Tempo total do atraso da chegada.'}
 
     distancia_km = {
         'tipo': float, 'descricao': 'Total em quilômetros entre o local de origem e destino'}
@@ -140,6 +143,38 @@ class Utils(Enum):
 
         # Retorna a distância em km
         return R * c
+
+    @staticmethod
+    def calcular_atraso(atrasou: str, prevista: str, real: str) -> str:
+        """
+        Calcula o tempo de atraso com base em uma chegada prevista e uma chegada real.
+
+        Parâmetros:
+            - chegada_prevista (str): String no formato 'dd/mm/yyyy HH:MM:SS' representando a chegada prevista.
+            - chegada_real (str): String no formato 'dd/mm/yyyy HH:MM:SS' representando a chegada real.
+
+        Retorna:
+            str: Tempo de atraso no formato 'HH:MM:SS'.
+
+        Exemplo de uso:
+            chegada_prevista = '02/01/2015 06:30:00'
+            chegada_real = '02/01/2015 06:35:15'
+
+            atraso = calcular_atraso(chegada_prevista, chegada_real)
+            print(atraso)  # Output: 00:05:15
+        """
+        if atrasou.upper() != 'S':
+            return ''
+
+        dt_prevista = datetime.strptime(prevista, '%d/%m/%Y %H:%M:%S')
+        dt_real = datetime.strptime(real, '%d/%m/%Y %H:%M:%S')
+        diferenca = dt_real - dt_prevista
+
+        segundos_total = diferenca.total_seconds()
+        horas, segundos_total = divmod(segundos_total, 3600)
+        minutos, segundos = divmod(segundos_total, 60)
+
+        return f'{int(horas):02}:{int(minutos):02}:{int(segundos):02}'
 
     @staticmethod
     def formatar_colunas_datetime(dataframe: pd.DataFrame, nome_coluna: str) -> pd.DataFrame:
@@ -271,13 +306,28 @@ class Utils(Enum):
 
     @staticmethod
     def motivo_atraso(motivo: str) -> str:
+        """
+        Retorna o motivo de atraso com base no código informado.
+
+        Parâmetros:
+            motivo (str): O código do motivo de atraso.
+
+        Retorna:
+            str: O motivo de atraso correspondente ao código.
+
+        Exemplo de uso:
+            motivo = Utils.motivo_atraso('AEROPORTO COM RESTRICOES OPERACIONAIS')
+            print(motivo)  # Saída: "Restrições operacionais no aeroporto"
+        """
+        default = 'Atraso não especificado'
+
         atrasos = {
             'AEROPORTO COM RESTRICOES OPERACIONAIS': 'Restrições operacionais no aeroporto',
             'ALTERNATIVA ABAIXO DOS LIMITES': 'Alternativa abaixo dos limites',
             'ANTECIPACAO DE HORARIO AUTORIZADA - ESPECIFICO VOOS INTERNACIONAIS': 'Antecipação de horário',
             'ATRASO AEROPORTO DE ALTERNATIVA - CONDICOES METEOROLOGICAS': 'Condições meteorológicas',
             'ATRASO AEROPORTO DE ALTERNATIVA - ORDEM TECNICA': 'Ordem técnica',
-            'ATRASOS NAO ESPECIFICOS - OUTROS': 'Outros',
+            'ATRASOS NAO ESPECIFICOS - OUTROS': default,
             'CONEXAO AERONAVE/VOLTA - VOO DE IDA NAO PENALIZADO AEROPORTO INTERDITADO': 'Interdição do aeroporto',
             'CONEXAO AERONAVE/VOLTA - VOO DE IDA NAO PENALIZADO CONDICOES METEOROLOGICAS': 'Condições meteorológicas',
             'CONEXAO DE AERONAVE': 'Conexão de aeronave',
@@ -288,10 +338,25 @@ class Utils(Enum):
             'TROCA DE AERONAVE': 'Troca de aeronave'
         }
 
-        return atrasos.get(motivo, '')
+        return atrasos.get(motivo, default)
 
     @staticmethod
     def motivo_cancelamento(motivo: str) -> str:
+        """
+        Retorna o motivo de cancelamento com base no código informado.
+
+        Parâmetros:
+            motivo (str): O código do motivo de cancelamento.
+
+        Retorna:
+            str: O motivo de cancelamento correspondente ao código.
+
+        Exemplo de uso:
+            motivo = Utils.motivo_cancelamento('CANCELAMENTO - CONEXAO AERONAVE/VOLTA - VOO DE IDA CANCELADO - AEROPORTO INTERDITADO')
+            print(motivo)  # Saída: "Interdição do aeroporto"
+        """
+        default = 'Cancelamento não especificado'
+
         cancelamentos = {
             'CANCELAMENTO - CONEXAO AERONAVE/VOLTA - VOO DE IDA CANCELADO - AEROPORTO INTERDITADO': 'Interdição do aeroporto',
             'CANCELAMENTO - CONEXAO AERONAVE/VOLTA - VOO DE IDA CANCELADO - CONDICOES METEOROLOGICAS': 'Condições meteorológicas',
@@ -300,7 +365,7 @@ class Utils(Enum):
             'PROGRAMADO - FERIADO NACIONAL': 'Feriado nacional'
         }
 
-        return cancelamentos.get(motivo, '')
+        return cancelamentos.get(motivo, default)
 
     @staticmethod
     def nome_companhia_aerea_normalizado(companhia_aerea: str) -> str:
@@ -428,25 +493,41 @@ class Utils(Enum):
         return dias_semana[dia_semana]
 
     @staticmethod
-    def criar_rota(codigo_tipo_linha, pais_origem, pais_destino, estado_origem, estado_destino, cidade_origem, cidade_destino):
+    def criar_rota(
+        codigo_tipo_linha: str,
+        pais_origem: str,
+        pais_destino: str,
+        estado_origem: str,
+        estado_destino: str,
+        cidade_origem: str,
+        cidade_destino: str
+    ) -> str:
         """
         Cria a rota com base no tipo de linha.
 
         Parâmetros:
-        - codigo_tipo_linha (str): O código do tipo de linha.
-        - pais_origem (str): O país de origem.
-        - pais_destino (str): O país de destino.
-        - estado_origem (str): O estado de origem.
-        - estado_destino (str): O estado de destino.
-        - cidade_origem (str): A cidade de origem.
-        - cidade_destino (str): A cidade de destino.
+            codigo_tipo_linha (str): O código do tipo de linha.
+            pais_origem (str): O país de origem.
+            pais_destino (str): O país de destino.
+            estado_origem (str): O estado de origem.
+            estado_destino (str): O estado de destino.
+            cidade_origem (str): A cidade de origem.
+            cidade_destino (str): A cidade de destino.
 
         Retorna:
-        - str: A rota criada com base no tipo de linha.
+            str: A rota criada com base no tipo de linha.
 
         Exemplo de uso:
-        rota = Utils.criar_rota('Nacional', 'Brasil', 'Argentina', 'São Paulo', 'Buenos Aires', 'São Paulo', 'Buenos Aires')
-        print(rota)  # Saída: "São Paulo - Buenos Aires"
+            rota = Utils.criar_rota(
+                'Nacional',
+                'Brasil',
+                'Argentina',
+                'São Paulo',
+                'Buenos Aires',
+                'São Paulo',
+                'Buenos Aires'
+            )
+            print(rota)  # Saída: "São Paulo - Buenos Aires"
         """
         if codigo_tipo_linha == 'Internacional':
             return pais_origem + ' - ' + pais_destino
@@ -454,6 +535,82 @@ class Utils(Enum):
             return estado_origem + ' - ' + estado_destino
         else:
             return cidade_origem + ' - ' + cidade_destino
+
+    @staticmethod
+    def converter_tempo_para_segundos(tempo: str) -> int:
+        """
+        Converte uma string de tempo no formato 'HH:MM:SS' para o total de segundos.
+
+        Parâmetros:
+            tempo (str): A string de tempo a ser convertida.
+
+        Retorna:
+            int: O total de segundos.
+
+        Levanta:
+            None.
+
+        Exemplos:
+            >>> converter_tempo_para_segundos('02:30:45')
+            9045
+            >>> converter_tempo_para_segundos('00:45:15')
+            2715
+        """
+        if isinstance(tempo, str) and tempo.count(':') == 2:
+            horas, minutos, segundos = map(int, tempo.split(':'))
+            total_segundos = horas * 3600 + minutos * 60 + segundos
+            return total_segundos
+        else:
+            return 0
+
+    @staticmethod
+    def converter_segundos_para_tempo(segundos: int) -> str:
+        """
+        Converte um número inteiro de segundos para uma string de tempo no formato 'HH:MM:SS'.
+
+        Parâmetros:
+            segundos (int): O número de segundos a ser convertido.
+
+        Retorna:
+            str: A string de tempo no formato 'HH:MM:SS'.
+
+        Levanta:
+            None.
+
+        Exemplos:
+            >>> converter_segundos_para_tempo(9045)
+            '02:30:45'
+            >>> converter_segundos_para_tempo(2715)
+            '00:45:15'
+        """
+        try:
+            horas = int(segundos) // 3600
+            minutos = (int(segundos) % 3600) // 60
+            segundos = int(segundos) % 60
+            return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
+        except:
+            return "00:00:00"
+
+    @staticmethod
+    def formatar_tempo_execucao(tempo: float) -> str:
+        """
+        Formata um tempo em segundos para o formato 'HH:MM:SS'.
+
+        Parâmetros:
+            tempo (float): O tempo em segundos a ser formatado.
+
+        Retorna:
+            str: O tempo formatado no formato 'HH:MM:SS'.
+
+        Exemplo:
+            >>> formatar_tempo_execucao(3610)
+            '01:00:10'
+        """
+        horas = int(tempo) // 3600
+        minutos = (int(tempo) % 3600) // 60
+        segundos = int(tempo) % 60
+
+        return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
 
 
 class Plot:
@@ -607,7 +764,7 @@ class Plot:
             plt.show()
 
     @staticmethod
-    def periodo_ferias_tipo_linha(dataframe: pd.DataFrame, periodo_ferias: str, grid: bool, context: str, figsize, suptitle: str):
+    def periodo_ferias_tipo_linha(dataframe: pd.DataFrame, periodo_ferias: str, grid: bool, context: str, figsize, suptitle: str) -> Any:
         with plt.style.context(context):
             fig = plt.figure(figsize=figsize)
 
@@ -621,9 +778,12 @@ class Plot:
             bar_width = 0.2
 
             bar_pos = np.arange(len(bar_values))
-            bars1 = ax1.bar(x=bar_pos - bar_width, height=bar_heights_1, width=bar_width, label='Realizados S/Atraso')
-            bars2 = ax1.bar(x=bar_pos, height=bar_heights_2, width=bar_width, label='Realizados C/Atraso')
-            bars3 = ax1.bar(x=bar_pos + bar_width, height=bar_heights_3, width=bar_width, label='Cancelados')
+            bars1 = ax1.bar(x=bar_pos - bar_width, height=bar_heights_1,
+                            width=bar_width, label='Realizados S/Atraso')
+            bars2 = ax1.bar(x=bar_pos, height=bar_heights_2,
+                            width=bar_width, label='Realizados C/Atraso')
+            bars3 = ax1.bar(x=bar_pos + bar_width, height=bar_heights_3,
+                            width=bar_width, label='Cancelados')
             ax1.set_xticks(bar_pos)
             ax1.set_xticklabels(bar_values, rotation=30, ha='right')
             ax1.set_yticklabels([])
@@ -631,7 +791,8 @@ class Plot:
 
             ax2 = ax1.twinx()
             line_heights = dataframe['voos']
-            ax2.plot(bar_pos, line_heights, color='red', linestyle=':', label='Totais')
+            ax2.plot(bar_pos, line_heights, color='red',
+                     linestyle=':', label='Totais')
             ax2.set_ylabel('Voos')
             ax2.set_yticklabels([])
             ax2.grid(grid)
@@ -640,20 +801,74 @@ class Plot:
             handles2, labels2 = ax2.get_legend_handles_labels()
             ax1.legend(handles1 + handles2, labels1 + labels2, loc='best')
 
-
             for bar1, bar2, bar3, height1, height2, height3 in zip(bars1, bars2, bars3, bar_heights_1, bar_heights_2, bar_heights_3):
                 ax1.annotate(f'{height1/lin_heights_1:.1%}', xy=(bar1.get_x() + bar1.get_width() / 2, height1),
-                            xytext=(0, 3), textcoords="offset points", ha='center', va='baseline')
+                             xytext=(0, 3), textcoords="offset points", ha='center', va='baseline')
                 ax1.annotate(f'{height2/lin_heights_1:.1%}', xy=(bar2.get_x() + bar2.get_width() / 2, height2),
-                            xytext=(0, 3), textcoords="offset points", ha='center', va='baseline')
+                             xytext=(0, 3), textcoords="offset points", ha='center', va='baseline')
                 ax1.annotate(f'{height3/lin_heights_1:.1%}', xy=(bar3.get_x() + bar3.get_width() / 2, height3),
-                            xytext=(0, 3), textcoords="offset points", ha='center', va='baseline')
-                
+                             xytext=(0, 3), textcoords="offset points", ha='center', va='baseline')
+
             mplcyberpunk.make_lines_glow(ax=ax2)
 
             plt.suptitle(suptitle, fontsize=25)
             plt.tight_layout()
             plt.show()
+
+    @staticmethod
+    def atrasos_periodo_ferias(dataframe: pd.DataFrame, periodo: str, linha, grid: bool, context: str, figsize):
+        with plt.style.context(context):
+            fig = plt.figure(figsize=figsize)
+
+            ax1 = plt.subplot2grid((4, 3), (0, 0), colspan=3)
+
+            # dados ax1
+            bar_values = dataframe['justificativa_atraso']
+            bar_heights = dataframe['total_atrasos']
+            bar_width = 0.35
+
+            # plot ax1
+            ax1.barh(y=bar_values, width=bar_heights, height=bar_width)
+            ax1.set_yticks(np.arange(len(bar_values)))
+            ax1.set_yticklabels(bar_values)
+            ax1.set_xticklabels([])
+            ax1.grid(grid)
+            ax1.set_title(f"{periodo.title()} | {linha.title()}", fontsize=20)
+
+            # values ax1
+            for i, v in enumerate(bar_heights):
+                ax1.text(v, i, str(v), va='center')
+
+            plt.tight_layout()
+            plt.show()
+
+    @staticmethod
+    def cancelamentos_periodo_ferias(dataframe: pd.DataFrame, periodo: str, linha, grid: bool, context: str, figsize):
+        with plt.style.context(context):
+            fig = plt.figure(figsize=figsize)
+
+            ax1 = plt.subplot2grid((4, 3), (0, 0), colspan=3)
+
+            # dados ax1
+            bar_values = dataframe['justificativa_cancelamento']
+            bar_heights = dataframe['total_cancelamentos']
+            bar_width = 0.35
+
+            # plot ax1
+            ax1.barh(y=bar_values, width=bar_heights, height=bar_width)
+            ax1.set_yticks(np.arange(len(bar_values)))
+            ax1.set_yticklabels(bar_values)
+            ax1.set_xticklabels([])
+            ax1.grid(grid)
+            ax1.set_title(f"{periodo.title()} | {linha.title()}", fontsize=20)
+
+            # values ax1
+            for i, v in enumerate(bar_heights):
+                ax1.text(v, i, str(v), va='center')
+
+            plt.tight_layout()
+            plt.show()
+
 
 class AnacVoos:
     """Classe que representa dados de voos da ANAC (Agência Nacional de Aviação Civil)."""
@@ -686,34 +901,24 @@ class AnacVoos:
         return []
 
     @classmethod
-    def get_voos_ferias(cls) -> pd.DataFrame:
-        if not cls.dados_solidos:
-            raise ValueError(
-                "Os dados não foram carregados ou foram comprometidos na transformação.")
+    @property
+    def tipo_linha(cls) -> List[str]:
+        """
+        Retorna uma lista dos períodos de férias presentes nos dados.
 
-        return cls.dados[cls.dados['periodo_ferias'] != '']
+        Retorna:
+        - List[str]: Lista dos tipos de linha.
 
-    @classmethod
-    def get_voos_ferias_geral(cls, filtrar_periodo_ferias: bool, percentuais, round: int, cols_groupby: List[str]) -> pd.DataFrame:
-        if not cls.dados_solidos:
-            raise ValueError(
-                "Os dados não foram carregados ou foram comprometidos na transformação.")
+        Exemplo de uso:
+        periodos = AnacVoos.tipo_linha
+        print(periodos)
 
-        add_aggregation = {
-            'voos': ('distancia_km', 'size')
-        }
+        """
 
-        if filtrar_periodo_ferias:
-            df = cls.__get_voos_ferias_regras(
-                cls.get_voos_ferias(), cols_groupby, add_aggregation)
-        else:
-            df = cls.__get_voos_ferias_regras(cls.dados, cols_groupby, add_aggregation)
-
-        if len(percentuais) > 0:
-            for cols in percentuais:
-                df[cols[0]] = (df[cols[1]] / df['voos']).round(round)
-
-        return df
+        if cls.dados_solidos:
+            periodos = cls.dados[cls.dados['codigo_tipo_linha'] != '']
+            return periodos['codigo_tipo_linha'].unique().tolist()
+        return []
 
     @classmethod
     def __get_voos_ferias_regras(cls, dataframe: pd.DataFrame, cols_groupby: List[str], aggregation_columns_added: Dict[str, Tuple[str, Callable]]) -> pd.DataFrame:
@@ -738,6 +943,61 @@ class AnacVoos:
         aggregation_columns.update(aggregation_columns_added)
 
         return dataframe.groupby(cols_groupby).agg(**aggregation_columns).reset_index()
+
+    @classmethod
+    def get_voos_ferias(cls) -> pd.DataFrame:
+        """
+        Retorna um DataFrame contendo os voos durante o período de férias.
+
+        Raises:
+            ValueError: Se os dados não foram carregados ou foram comprometidos na transformação.
+
+        Returns:
+            pd.DataFrame: DataFrame contendo os voos durante o período de férias.
+        """
+        if not cls.dados_solidos:
+            raise ValueError(
+                "Os dados não foram carregados ou foram comprometidos na transformação.")
+
+        return cls.dados[cls.dados['periodo_ferias'] != '']
+
+    @classmethod
+    def get_voos_ferias_geral(cls, filtrar_periodo_ferias: bool, percentuais: List[List[str]], round: int, cols_groupby: List[str]) -> pd.DataFrame:
+        """
+        Retorna um DataFrame com informações gerais sobre os voos durante o período de férias.
+
+        Args:
+            filtrar_periodo_ferias (bool): Indica se os dados devem ser filtrados apenas para o período de férias.
+            percentuais: Lista de tuplas contendo as colunas que devem ser calculadas como percentuais.
+            round (int): Número de casas decimais para arredondar os percentuais.
+            cols_groupby (List[str]): Lista de colunas utilizadas para agrupar os dados.
+
+        Raises:
+            ValueError: Se os dados não foram carregados ou foram comprometidos na transformação.
+
+        Returns:
+            pd.DataFrame: DataFrame com informações gerais sobre os voos durante o período de férias.
+        """
+        if not cls.dados_solidos:
+            raise ValueError(
+                "Os dados não foram carregados ou foram comprometidos na transformação.")
+
+        add_aggregation = {
+            'voos': ('distancia_km', 'size')
+        }
+
+        if filtrar_periodo_ferias:
+            df = cls.__get_voos_ferias_regras(
+                cls.get_voos_ferias(), cols_groupby, add_aggregation)
+        else:
+            df = cls.__get_voos_ferias_regras(
+                cls.dados, cols_groupby, add_aggregation)
+
+        if len(percentuais) > 0:
+            for cols in percentuais:
+                df[cols[0]] = (df[cols[1]] / df['voos']).round(round)
+
+        return df
 
     @classmethod
     def get_voos_ferias_tipo_linha(cls, codigo_tipo_linha: str, percentuais: List[List[str]], round: int) -> pd.DataFrame:
@@ -774,3 +1034,82 @@ class AnacVoos:
                                           'realizados_s_atraso', 'tx_realizados', 'realizados_c_atraso', 'tx_atrasos', 'cancelados', 'tx_cancelados'])
 
         return df_filtrado
+
+    @classmethod
+    def get_atrasos_voos_ferias(cls, cols_groupby, converter_segundos_para_tempo, filtro_periodo_ferias=None, filtro_codigo_tipo_linha=None) -> pd.DataFrame:
+        if not cls.dados_solidos:
+            raise ValueError(
+                "Os dados não foram carregados ou foram comprometidos na transformação.")
+
+        atrasos = cls.get_voos_ferias().query(
+            "partida_atrasou == 'S' or chegada_atrasou == 'S' or situacao_voo == 'Realizado Com Atraso'")
+
+        if filtro_periodo_ferias is not None:
+            atrasos = atrasos.query("periodo_ferias == @filtro_periodo_ferias")
+
+        if filtro_codigo_tipo_linha is not None:
+            atrasos = atrasos.query(
+                "codigo_tipo_linha == @filtro_codigo_tipo_linha")
+
+        atrasos.loc[atrasos['tempo_atraso_partida'].notnull(), 'tempo_atraso_partida'] = atrasos.loc[atrasos['tempo_atraso_partida'].notnull(
+        ), 'tempo_atraso_partida'].apply(Utils.converter_tempo_para_segundos)
+        atrasos.loc[atrasos['tempo_atraso_chegada'].notnull(), 'tempo_atraso_chegada'] = atrasos.loc[atrasos['tempo_atraso_chegada'].notnull(
+        ), 'tempo_atraso_chegada'].apply(Utils.converter_tempo_para_segundos)
+
+        atrasos = atrasos.groupby(cols_groupby).agg(
+            total_atrasos=(cols_groupby[0], 'size'),
+            media_atrasos_partida=('tempo_atraso_partida', 'mean'),
+            media_atrasos_chegada=('tempo_atraso_chegada', 'mean')
+        ).reset_index()
+
+        if converter_segundos_para_tempo:
+            atrasos.loc[:, 'media_atrasos_partida'] = atrasos.loc[:,
+                                                                  'media_atrasos_partida'].apply(Utils.converter_segundos_para_tempo)
+            atrasos.loc[:, 'media_atrasos_chegada'] = atrasos.loc[:,
+                                                                  'media_atrasos_chegada'].apply(Utils.converter_segundos_para_tempo)
+
+        return atrasos.sort_values(by=['periodo_ferias', 'total_atrasos'], ascending=False)
+
+    @classmethod
+    def get_cancelamentos_voos_ferias(cls, cols_groupby, filtro_periodo_ferias=None, filtro_codigo_tipo_linha=None) -> pd.DataFrame:
+        if not cls.dados_solidos:
+            raise ValueError(
+                "Os dados não foram carregados ou foram comprometidos na transformação.")
+
+        atrasos = cls.get_voos_ferias().query(
+            "situacao_voo == 'Cancelado'")
+
+        if filtro_periodo_ferias is not None:
+            atrasos = atrasos.query("periodo_ferias == @filtro_periodo_ferias")
+
+        if filtro_codigo_tipo_linha is not None:
+            atrasos = atrasos.query(
+                "codigo_tipo_linha == @filtro_codigo_tipo_linha")
+
+        atrasos = atrasos.groupby(cols_groupby).agg(
+            total_cancelamentos=(cols_groupby[0], 'size'),
+        ).reset_index()
+
+        return atrasos.sort_values(by=['periodo_ferias', 'total_cancelamentos'], ascending=False)
+
+    @classmethod
+    def get_voos_ferias_resumo(cls, txs_columns, groupby_columns, round):
+        if not cls.dados_solidos:
+            raise ValueError(
+                "Os dados não foram carregados ou foram comprometidos na transformação.")
+
+        aggregation_columns = {
+            'voos': ('situacao_voo', 'size'),
+            'realizados_s_atraso': ('situacao_voo', lambda x: (x == 'Realizado Sem Atraso').sum()),
+            'realizados_c_atraso': ('situacao_voo', lambda x: (x == 'Realizado Com Atraso').sum()),
+            'cancelados': ('situacao_voo', lambda x: (x == 'Cancelado').sum())
+        }
+
+        dataframe = cls.get_voos_ferias().groupby(
+            groupby_columns).agg(**aggregation_columns).reset_index()
+
+        for cols in txs_columns:
+            dataframe[cols[0]] = (
+                dataframe[cols[1]] / dataframe['voos']).round(round)
+
+        return dataframe
