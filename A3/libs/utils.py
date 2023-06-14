@@ -606,6 +606,54 @@ class Plot:
                        "Realizados c/ Atraso", "Cancelados"], loc='best')
             plt.show()
 
+    @staticmethod
+    def periodo_ferias_tipo_linha(dataframe: pd.DataFrame, periodo_ferias: str, grid: bool, context: str, figsize, suptitle: str):
+        with plt.style.context(context):
+            fig = plt.figure(figsize=figsize)
+
+            ax1 = plt.subplot2grid((2, 3), (0, 0), colspan=3)
+
+            bar_values = dataframe['rota']
+            lin_heights_1 = dataframe['voos'].values[0]
+            bar_heights_1 = dataframe['realizados_s_atraso']
+            bar_heights_2 = dataframe['realizados_c_atraso']
+            bar_heights_3 = dataframe['cancelados']
+            bar_width = 0.2
+
+            bar_pos = np.arange(len(bar_values))
+            bars1 = ax1.bar(x=bar_pos - bar_width, height=bar_heights_1, width=bar_width, label='Realizados S/Atraso')
+            bars2 = ax1.bar(x=bar_pos, height=bar_heights_2, width=bar_width, label='Realizados C/Atraso')
+            bars3 = ax1.bar(x=bar_pos + bar_width, height=bar_heights_3, width=bar_width, label='Cancelados')
+            ax1.set_xticks(bar_pos)
+            ax1.set_xticklabels(bar_values, rotation=30, ha='right')
+            ax1.set_yticklabels([])
+            ax1.grid(grid)
+
+            ax2 = ax1.twinx()
+            line_heights = dataframe['voos']
+            ax2.plot(bar_pos, line_heights, color='red', linestyle=':', label='Totais')
+            ax2.set_ylabel('Voos')
+            ax2.set_yticklabels([])
+            ax2.grid(grid)
+
+            handles1, labels1 = ax1.get_legend_handles_labels()
+            handles2, labels2 = ax2.get_legend_handles_labels()
+            ax1.legend(handles1 + handles2, labels1 + labels2, loc='best')
+
+
+            for bar1, bar2, bar3, height1, height2, height3 in zip(bars1, bars2, bars3, bar_heights_1, bar_heights_2, bar_heights_3):
+                ax1.annotate(f'{height1/lin_heights_1:.1%}', xy=(bar1.get_x() + bar1.get_width() / 2, height1),
+                            xytext=(0, 3), textcoords="offset points", ha='center', va='baseline')
+                ax1.annotate(f'{height2/lin_heights_1:.1%}', xy=(bar2.get_x() + bar2.get_width() / 2, height2),
+                            xytext=(0, 3), textcoords="offset points", ha='center', va='baseline')
+                ax1.annotate(f'{height3/lin_heights_1:.1%}', xy=(bar3.get_x() + bar3.get_width() / 2, height3),
+                            xytext=(0, 3), textcoords="offset points", ha='center', va='baseline')
+                
+            mplcyberpunk.make_lines_glow(ax=ax2)
+
+            plt.suptitle(suptitle, fontsize=25)
+            plt.tight_layout()
+            plt.show()
 
 class AnacVoos:
     """Classe que representa dados de voos da ANAC (Agência Nacional de Aviação Civil)."""
