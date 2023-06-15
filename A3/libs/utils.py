@@ -78,7 +78,7 @@ class Utils(Enum):
         return list(map(lambda coluna: coluna.name, Utils))
 
     @staticmethod
-    def tipo_coluna(nome_coluna: str) -> str | None:
+    def tipo_coluna(nome_coluna: str) -> str:
         """
         Retorna o tipo de dados da coluna especificada.
 
@@ -91,7 +91,7 @@ class Utils(Enum):
         return Utils.__dict__[nome_coluna].__dict__['_value_']['tipo']
 
     @staticmethod
-    def descricao_coluna(nome_coluna: str) -> str | None:
+    def descricao_coluna(nome_coluna: str) -> str:
         """
         Retorna a descrição da coluna especificada.
 
@@ -443,13 +443,27 @@ class Utils(Enum):
         return companhia_aerea
 
     @staticmethod
-    def centralizar_dataframe(dataframe: pd.DataFrame, limit: int | None = 10) -> None:
+    def tipo_linha_normalizado(codigo_tipo_linha: str) -> str:
+        """
+        Normaliza o código de tipo de linha para a forma desejada.
+
+        Args:
+            codigo_tipo_linha (str): O código de tipo de linha a ser normalizado.
+
+        Returns:
+            str: O código de tipo de linha normalizado.
+        """
+        if codigo_tipo_linha == 'Regional': return 'Nacional'
+        else: return codigo_tipo_linha
+
+    @staticmethod
+    def centralizar_dataframe(dataframe: pd.DataFrame, limit: int= 10) -> None:
         """
         Centraliza um dataframe exibindo-o com alinhamento centralizado das células.
 
         Parâmetros:
         - dataframe: pandas.DataFrame: O dataframe a ser centralizado.
-        - limit: int | None: Opcional. O número máximo de linhas a serem exibidas. Se None, exibe todas as linhas.
+        - limit: int: Opcional. O número máximo de linhas a serem exibidas. Se None, exibe todas as linhas.
 
         Retorna:
         - pandas.DataFrame
@@ -636,7 +650,6 @@ class Plot:
 
             ax1 = plt.subplot2grid((2, 3), (0, 0))
             ax2 = plt.subplot2grid((2, 3), (0, 1))
-            ax3 = plt.subplot2grid((2, 3), (0, 2))
 
             # Dados para os gráficos de barras
             periodo = periodo_ferias[0]
@@ -731,32 +744,6 @@ class Plot:
             bar_pos_1 = np.arange(len(bar_values))
             bar_pos_2 = bar_pos_1 + bar_width + 0.1
             bar_pos_3 = bar_pos_1 + 2*(bar_width + 0.1)
-
-            # Certifique-se de que as barras estejam deslocadas uma da outra
-            ax3.barh(y=bar_pos_1, width=bar_heights_1,
-                     height=bar_width, label='Realizados S/Atraso')
-            ax3.barh(y=bar_pos_2, width=bar_heights_2,
-                     height=bar_width, label='Realizados C/Atraso')
-            ax3.barh(y=bar_pos_3, width=bar_heights_3,
-                     height=bar_width, label='Cancelados')
-            ax3.set_yticks(bar_pos_2)
-            ax3.set_yticklabels([])
-            ax3.set_xticks([])
-            ax3.grid(grid)
-            ax3.set_title(f"Período de {periodo.title()}", fontsize=14)
-
-            # Adicionar totais acima das barras 'top', 'bottom', 'center', 'baseline', 'center_baseline'
-            for i, v in enumerate(bar_heights_1):
-                ax3.annotate(str(v), xy=(v + 0.2, bar_pos_1[i] + bar_width/2), xytext=(
-                    5, 0), textcoords="offset points", color='white', ha='left', va='top')
-
-            for i, v in enumerate(bar_heights_2):
-                ax3.annotate(str(v), xy=(v + 0.2, bar_pos_2[i] + bar_width/2), xytext=(
-                    5, 0), textcoords="offset points", color='white', ha='left', va='top')
-
-            for i, v in enumerate(bar_heights_3):
-                ax3.annotate(str(v), xy=(v + 0.2, bar_pos_3[i] + bar_width/2), xytext=(
-                    5, 0), textcoords="offset points", color='white', ha='left', va='top')
 
             plt.suptitle(suptitle, fontsize=25)
             plt.legend(["Realizados s/ Atraso",
@@ -998,27 +985,30 @@ class AnacVoos:
         return df
 
     @classmethod
-    def get_voos_ferias_linha_periodo(cls, cols_groupyby: List[str], cols_percentuais: List[List[str]], round: int, ranking: int = 10, linha: str = None, periodo: str = None) -> pd.DataFrame:
+    def get_voos_ferias_linha_periodo(cls, cols_groupyby: List[str], cols_percentuais: List[List[str]], round: int = 2, ranking: int = 10, linha: str = None, periodo: str = None, reset_index: bool = True, order: List[str] = []) -> pd.DataFrame:
         """
-        Obtém os voos de férias de um determinado tipo de linha com base nos filtros especificados.
+        Retorna os voos de férias filtrados por linha e período, agregados e classificados.
 
-        Parâmetros:
-        - cols_groupyby (List[str]): Lista das colunas a serem agrupadas.
-        - cols_percentuais (List[List[str]]): Lista de pares de colunas para cálculo de percentuais.
-        - round (int): Número de casas decimais para arredondamento.
-        - ranking (int): Número máximo de registros no resultado.
-        - linha (str): Tipo de linha para filtrar os voos de férias (opcional).
-        - periodo (str): Período de férias para filtrar os voos de férias (opcional).
+        Args:
+            cols_groupyby (List[str]): Lista das colunas de agrupamento.
+            cols_percentuais (List[List[str]]): Lista das colunas de percentuais.
+            round (int, optional): O número de casas decimais para arredondamento. Default é 2.
+            ranking (int, optional): O número de linhas do ranking a serem retornadas. Default é 10.
+            linha (str, optional): A linha de voo desejada. Default é None.
+            periodo (str, optional): O período de férias desejado. Default é None.
+            reset_index (bool, optional): Indica se o índice do dataframe resultante deve ser redefinido. Default é True.
+            order (List[str], optional): Lista das colunas na ordem desejada. Default é [].
 
-        Retorna:
-        - pd.DataFrame: DataFrame contendo os voos de férias filtrados e agregados, classificados pelo número de voos em ordem decrescente.
-
-        Exemplo de uso:
-        nacionais = AnacVoos.get_voos_ferias_tipo_linha(cols_groupyby=['codigo_tipo_linha', 'periodo_ferias', 'rota'], cols_percentuais=[['tx_realizados', 'realizados_s_atraso'], ['tx_atrasos', 'realizados_c_atraso'], ['tx_cancelados', 'cancelados']], round=2, ranking=10, linha='Nacional', periodo='2022-01')
-        print(nacionais)
+        Returns:
+            pd.DataFrame: O dataframe resultante com os voos de férias filtrados, agregados e classificados.
         """
         if not cls.dados_solidos:
             raise ValueError("Os dados não foram carregados ou foram comprometidos na transformação.")
+
+        add_aggregation = {
+            'distancia_media_km': ('distancia_km', 'mean'),
+            'voos': ('distancia_km', 'size')
+        }
 
         dataframe: pd.DataFrame = cls.dados
         if linha is not None:
@@ -1026,15 +1016,19 @@ class AnacVoos:
         if periodo is not None:
             dataframe = dataframe.query("periodo_ferias == @periodo")
 
-        add_aggregation = {
-            'distancia_media_km': ('distancia_km', 'mean'),
-            'voos': ('distancia_km', 'size')
-        }
-
         dataframe_agg = cls.__get_voos_ferias_regras(dataframe=dataframe, cols_groupby=cols_groupyby, aggregation_columns_added=add_aggregation)
 
         for cols in cols_percentuais:
             dataframe_agg[cols[0]] = (dataframe_agg[cols[1]] / dataframe_agg['voos']).round(round)
+
+        if len(order) == 0:
+            cols_percentuais_order = [col for sublist in cols_percentuais for col in sublist[::-1]]
+            cols_add_aggregation = [key for key in add_aggregation.keys()]
+            cols_ordered = cols_groupyby + cols_add_aggregation + cols_percentuais_order
+            dataframe_agg = dataframe_agg.reindex(columns=cols_ordered)
+
+        if reset_index:
+            return dataframe_agg.nlargest(ranking, 'voos').reset_index(drop=True)
 
         return dataframe_agg.nlargest(ranking, 'voos')
 
