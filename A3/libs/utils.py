@@ -998,40 +998,45 @@ class AnacVoos:
         return df
 
     @classmethod
-    def get_voos_ferias_tipo_linha(cls, codigo_tipo_linha: str, percentuais: List[List[str]], round: int) -> pd.DataFrame:
+    def get_voos_ferias_linha_periodo(cls, cols_groupyby: List[str], cols_percentuais: List[List[str]], round: int, ranking: int = 10, linha: str = None, periodo: str = None) -> pd.DataFrame:
         """
-        Retorna um DataFrame filtrado pelos voos de férias de acordo com o tipo de linha especificado.
+        Obtém os voos de férias de um determinado tipo de linha com base nos filtros especificados.
 
         Parâmetros:
-        - codigo_tipo_linha (str): O tipo de linha dos voos a serem filtrados.
-        - percentuais (List[List[str]]): Uma lista de listas contendo os pares de colunas que serão calculados como percentuais.
-        - round (int): O número de casas decimais para arredondar os percentuais.
+        - cols_groupyby (List[str]): Lista das colunas a serem agrupadas.
+        - cols_percentuais (List[List[str]]): Lista de pares de colunas para cálculo de percentuais.
+        - round (int): Número de casas decimais para arredondamento.
+        - ranking (int): Número máximo de registros no resultado.
+        - linha (str): Tipo de linha para filtrar os voos de férias (opcional).
+        - periodo (str): Período de férias para filtrar os voos de férias (opcional).
 
-        Retorno:
-        Um DataFrame filtrado com as colunas especificadas e os percentuais calculados.
+        Retorna:
+        - pd.DataFrame: DataFrame contendo os voos de férias filtrados e agregados, classificados pelo número de voos em ordem decrescente.
+
+        Exemplo de uso:
+        nacionais = AnacVoos.get_voos_ferias_tipo_linha(cols_groupyby=['codigo_tipo_linha', 'periodo_ferias', 'rota'], cols_percentuais=[['tx_realizados', 'realizados_s_atraso'], ['tx_atrasos', 'realizados_c_atraso'], ['tx_cancelados', 'cancelados']], round=2, ranking=10, linha='Nacional', periodo='2022-01')
+        print(nacionais)
         """
-
         if not cls.dados_solidos:
-            raise ValueError(
-                "Os dados não foram carregados ou foram comprometidos na transformação.")
+            raise ValueError("Os dados não foram carregados ou foram comprometidos na transformação.")
+
+        dataframe: pd.DataFrame = cls.dados
+        if linha is not None:
+            dataframe = dataframe.query("codigo_tipo_linha == @linha")
+        if periodo is not None:
+            dataframe = dataframe.query("periodo_ferias == @periodo")
 
         add_aggregation = {
             'distancia_media_km': ('distancia_km', 'mean'),
             'voos': ('distancia_km', 'size')
         }
 
-        df_filtrado = cls.__get_voos_ferias_regras(
-            cls.dados[cls.dados['codigo_tipo_linha'] == codigo_tipo_linha], ['periodo_ferias', 'rota'], add_aggregation) \
-            .sort_values(by=['voos', 'distancia_media_km'], ascending=[False, True])
+        dataframe_agg = cls.__get_voos_ferias_regras(dataframe=dataframe, cols_groupby=cols_groupyby, aggregation_columns_added=add_aggregation)
 
-        for cols in percentuais:
-            df_filtrado[cols[0]] = (
-                df_filtrado[cols[1]] / df_filtrado['voos']).round(round)
+        for cols in cols_percentuais:
+            dataframe_agg[cols[0]] = (dataframe_agg[cols[1]] / dataframe_agg['voos']).round(round)
 
-        df_filtrado = df_filtrado.reindex(columns=['periodo_ferias', 'rota', 'distancia_media_km', 'voos',
-                                          'realizados_s_atraso', 'tx_realizados', 'realizados_c_atraso', 'tx_atrasos', 'cancelados', 'tx_cancelados'])
-
-        return df_filtrado
+        return dataframe_agg.nlargest(ranking, 'voos')
 
     @classmethod
     def get_atrasos_voos_ferias(cls, cols_groupby, converter_segundos_para_tempo, filtro_periodo_ferias=None, filtro_codigo_tipo_linha=None) -> pd.DataFrame:
