@@ -881,7 +881,6 @@ class AnacVoos:
     tempo_execucao = 0
 
     @classmethod
-    @property
     def periodo_ferias(cls) -> List[str]:
         """
         Retorna uma lista dos períodos de férias presentes nos dados.
@@ -901,7 +900,6 @@ class AnacVoos:
         return []
 
     @classmethod
-    @property
     def tipo_linha(cls) -> List[str]:
         """
         Retorna uma lista dos períodos de férias presentes nos dados.
