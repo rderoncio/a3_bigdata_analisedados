@@ -628,12 +628,35 @@ class Utils(Enum):
         return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
     
     @staticmethod
-    def background_row(row: pd.Series, color: str = 'lightgrey') -> List[str]:
-        return [f'background-color: {color}'] * len(row)
-    
+    def marcar_fundo_linha(row, id, cor):
+        if row.name == id:
+            return [f'background-color: {cor}'] * len(row)
+        else:
+            return [''] * len(row)
+
     @staticmethod
-    def color_row(row: pd.Series, color: str = 'green') -> List[str]:
-        return [f'color: {color}'] * len(row)
+    def marcar_negrito_linha(row, id, cor):
+        if row.name == id:
+            return [f'font-weight: bold; color: {cor}'] * len(row)
+        else:
+            return [''] * len(row)
+
+    @classmethod
+    def marcar_txs(cls, dataframe: pd.DataFrame):
+        id_max_realizados = dataframe.query("tx_realizados == tx_realizados.max()").index[0]
+        id_max_atrasados = dataframe.query("tx_atrasos == tx_atrasos.max()").index[0]
+        id_max_cancelados = dataframe.query("tx_cancelados == tx_cancelados.max()").index[0]
+
+        dataframe = dataframe.style\
+            .apply(lambda row: cls.marcar_fundo_linha(row, id_max_realizados, 'lightgreen'), axis=1)\
+            .apply(lambda row: cls.marcar_negrito_linha(row, id_max_realizados, 'black'), axis=1)\
+            .apply(lambda row: cls.marcar_fundo_linha(row, id_max_atrasados, 'lightyellow'), axis=1)\
+            .apply(lambda row: cls.marcar_negrito_linha(row, id_max_atrasados, 'black'), axis=1)\
+            .apply(lambda row: cls.marcar_fundo_linha(row, id_max_cancelados, 'mistyrose'), axis=1)\
+            .apply(lambda row: cls.marcar_negrito_linha(row, id_max_cancelados, 'black'), axis=1)
+        
+        return dataframe
+
 
 class Plot:
 
@@ -1054,7 +1077,7 @@ class AnacVoos:
 
             return dataframe.sort_values(by=['codigo_tipo_linha', 'periodo_ferias', 'dia_semana'])
         except Exception as e:
-            print("Não foi possível realizar a ordenação:", e)
+            #print("Não foi possível realizar a ordenação:", e)
             return dataframe
 
     @classmethod
@@ -1232,7 +1255,8 @@ class AnacVoos:
         return tot_voos, atrasos.sort_values(by=['periodo_ferias', 'total_cancelamentos'], ascending=False)
 
     @classmethod
-    def get_voos_ferias_resumo(cls, cols_groupby, col_tx: str, round: int, periodo=None, linha=None, reset_index: bool = True, order: List[str] = [], ordenar_resumo: bool = False):
+    def get_voos_ferias_resumo(cls, cols_groupby, col_tx: str, round: int, periodo=None, linha=None, order: List[str]=[], 
+                               ordenar_resumo: bool = False, formatar_txs: bool = False, marcar_txs=False):
         if not cls.dados_solidos:
             raise ValueError(
                 "Os dados não foram carregados ou foram comprometidos na transformação.")
@@ -1241,14 +1265,15 @@ class AnacVoos:
             'voos': ('distancia_km', 'size')
         }
 
-        df_tot_voos: pd.DataFrame = cls.get_voos_ferias()
+        dataframe: pd.DataFrame = cls.get_voos_ferias()
 
         if linha is not None:
             dataframe = dataframe.query("codigo_tipo_linha == @linha")
+            
         if periodo is not None:
             dataframe = dataframe.query("periodo_ferias == @periodo")
 
-        dataframe = cls.__get_voos_ferias_regras(df_tot_voos, cols_groupby, add_aggregation)
+        dataframe = cls.__get_voos_ferias_regras(dataframe, cols_groupby, add_aggregation)
         
         if len(order) == 0:
             cols_percentuais_order = [col for sublist in col_tx for col in sublist[::-1]]
@@ -1260,10 +1285,15 @@ class AnacVoos:
             dataframe[cols[0]] = (
                 dataframe[cols[1]] / dataframe['voos']).round(round)
             
-        if reset_index:
-            dataframe = dataframe.sort_values(by='voos', ascending=False).reset_index(drop=True)
-
         if ordenar_resumo:
             dataframe = cls.__ordenar_resumo(dataframe, True, True, True)
 
+        if formatar_txs:
+            for col_tx in dataframe.columns:
+                if col_tx.__contains__('tx_'):
+                    dataframe[col_tx] = dataframe[col_tx].apply(lambda x: '{:.2%}'.format(x/100))
+
+        if marcar_txs:
+            dataframe = Utils.marcar_txs(dataframe=dataframe.reset_index(drop=True))
+        
         return dataframe
