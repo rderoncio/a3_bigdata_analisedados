@@ -1,3 +1,4 @@
+from ctypes import Union
 from enum import Enum
 from datetime import datetime
 from typing import Any, Callable, List, Dict, Tuple
@@ -625,7 +626,14 @@ class Utils(Enum):
         segundos = int(tempo) % 60
 
         return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
-
+    
+    @staticmethod
+    def background_row(row: pd.Series, color: str = 'lightgrey') -> List[str]:
+        return [f'background-color: {color}'] * len(row)
+    
+    @staticmethod
+    def color_row(row: pd.Series, color: str = 'green') -> List[str]:
+        return [f'color: {color}'] * len(row)
 
 class Plot:
 
@@ -650,6 +658,7 @@ class Plot:
 
             ax1 = plt.subplot2grid((2, 3), (0, 0))
             ax2 = plt.subplot2grid((2, 3), (0, 1))
+            ax3 = plt.subplot2grid((2, 3), (0, 2))
 
             # Dados para os gráficos de barras
             periodo = periodo_ferias[0]
@@ -745,6 +754,31 @@ class Plot:
             bar_pos_2 = bar_pos_1 + bar_width + 0.1
             bar_pos_3 = bar_pos_1 + 2*(bar_width + 0.1)
 
+            ax3.barh(y=bar_pos_1, width=bar_heights_1,
+                     height=bar_width, label='Realizados S/Atraso')
+            ax3.barh(y=bar_pos_2, width=bar_heights_2,
+                     height=bar_width, label='Realizados C/Atraso')
+            ax3.barh(y=bar_pos_3, width=bar_heights_3,
+                     height=bar_width, label='Cancelados')
+            ax3.set_yticks(bar_pos_2)
+            ax3.set_yticklabels([])
+            ax3.set_xticks([])  # Remove os valores do eixo x
+            ax3.grid(grid)
+            ax3.set_title(f"Período de {periodo.title()}", fontsize=14)
+
+            # Adicionar totais acima das barras 'top', 'bottom', 'center', 'baseline', 'center_baseline'
+            for i, v in enumerate(bar_heights_1):
+                ax3.annotate(str(v), xy=(v + 0.2, bar_pos_1[i] + bar_width/2), xytext=(
+                    5, 0), textcoords="offset points", color='white', ha='left', va='top')
+
+            for i, v in enumerate(bar_heights_2):
+                ax3.annotate(str(v), xy=(v + 0.2, bar_pos_2[i] + bar_width/2), xytext=(
+                    5, 0), textcoords="offset points", color='white', ha='left', va='top')
+
+            for i, v in enumerate(bar_heights_3):
+                ax3.annotate(str(v), xy=(v + 0.2, bar_pos_3[i] + bar_width/2), xytext=(
+                    5, 0), textcoords="offset points", color='white', ha='left', va='top')
+
             plt.suptitle(suptitle, fontsize=25)
             plt.legend(["Realizados s/ Atraso",
                        "Realizados c/ Atraso", "Cancelados"], loc='best')
@@ -803,7 +837,7 @@ class Plot:
             plt.show()
 
     @staticmethod
-    def atrasos_periodo_ferias(dataframe: pd.DataFrame, periodo: str, linha, grid: bool, context: str, figsize):
+    def atrasos_periodo_ferias(dataframe: pd.DataFrame, grid: bool, context: str, figsize, periodo: str = '', linha: str = ''):
         with plt.style.context(context):
             fig = plt.figure(figsize=figsize)
 
@@ -815,12 +849,18 @@ class Plot:
             bar_width = 0.35
 
             # plot ax1
-            ax1.barh(y=bar_values, width=bar_heights, height=bar_width)
+            ax1.barh(y=bar_values, width=bar_heights, height=bar_width, color='#FE53BB')
             ax1.set_yticks(np.arange(len(bar_values)))
             ax1.set_yticklabels(bar_values)
             ax1.set_xticklabels([])
             ax1.grid(grid)
-            ax1.set_title(f"{periodo.title()} | {linha.title()}", fontsize=20)
+            ax1.invert_yaxis()
+
+            title:str = ''
+            if periodo != '': title = title + f"{periodo.title()}"
+            if linha != '': title = title + f" | {linha.title()}"
+
+            ax1.set_title(title, fontsize=15)
 
             # values ax1
             for i, v in enumerate(bar_heights):
@@ -856,6 +896,52 @@ class Plot:
             plt.tight_layout()
             plt.show()
 
+    @staticmethod
+    def justificativas_cancelamento(dataframe: pd.DataFrame, grid: bool, context: str, figsize: tuple, add_suptitle: str = '') -> None:
+        """
+        Plota um gráfico de barras horizontais das justificativas de cancelamento de voo.
+        
+        Parâmetros:
+            - dataframe: DataFrame contendo as colunas 'justificativa_cancelamento' e 'total_cancelamentos'.
+            - grid: Indica se as linhas de grade devem ser exibidas no gráfico.
+            - context: Estilo do gráfico.
+            - figsize: Tamanho da figura (largura, altura) em polegadas.
+            - add_suptitle: Título adicional para a figura.
+        """
+        with plt.style.context(context):
+            fig = plt.figure(figsize=figsize)
+
+            ax1 = plt.subplot2grid((4, 3), (0, 0), colspan=3)
+
+            # dados ax1
+            bar_values = dataframe['justificativa_cancelamento'].values
+            bar_heights = dataframe['total_cancelamentos'].values
+            bar_width = 0.35
+
+            # plot ax1
+            ax1.barh(y=bar_values, width=bar_heights, height=bar_width, color='#F5D302')
+            ax1.set_yticks(np.arange(len(bar_values)))
+            ax1.set_yticklabels(bar_values)
+            ax1.set_xticklabels([])
+            ax1.grid(grid)
+            ax1.invert_yaxis()
+            
+            linha: Union[str, None]
+            if 'codigo_tipo_linha' in dataframe.columns:
+                linha = f" | {dataframe['codigo_tipo_linha'].unique().tolist()[0]}"
+            else:
+                linha = ''
+
+            title = f"Cancelamentos" + f" | {add_suptitle.title()}{linha}"
+
+            fig.suptitle(title, fontsize=15)
+            
+            # values ax1
+            for i, v in enumerate(bar_heights):
+                ax1.text(v, i, str(v), va='center')
+
+            plt.tight_layout()
+            plt.show()
 
 class AnacVoos:
     """Classe que representa dados de voos da ANAC (Agência Nacional de Aviação Civil)."""
@@ -928,6 +1014,48 @@ class AnacVoos:
         aggregation_columns.update(aggregation_columns_added)
 
         return dataframe.groupby(cols_groupby).agg(**aggregation_columns).reset_index()
+
+    @classmethod
+    def __ordenar_resumo(
+        cls, 
+        dataframe: pd.DataFrame, 
+        ordena_codigo_tipo_linha: bool, 
+        ordena_periodo_ferias: bool, 
+        ordena_dia_semana: bool
+    ) -> pd.DataFrame:
+        """
+        Ordena um DataFrame de resumo de acordo com os critérios especificados.
+
+        Parâmetros:
+            - dataframe: O DataFrame a ser ordenado.
+            - ordena_codigo_tipo_linha: Indica se a coluna 'codigo_tipo_linha' deve ser ordenada.
+            - ordena_periodo_ferias: Indica se a coluna 'periodo_ferias' deve ser ordenada.
+            - ordena_dia_semana: Indica se a coluna 'dia_semana' deve ser ordenada.
+
+        Retorno:
+            O DataFrame ordenado de acordo com os critérios especificados.
+
+        Exemplo de Uso:
+            resumo_ordenado = Classe.__ordenar_resumo(dataframe, True, True, False)
+        """
+        try:
+            ordem_codigo_tipo_linha = ['Nacional', 'Internacional']
+            ordem_periodo_ferias = ['janeiro', 'julho', 'dezembro']
+            ordem_dia_semana = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado']
+
+            if ordena_codigo_tipo_linha:
+                dataframe['codigo_tipo_linha'] = pd.Categorical(dataframe['codigo_tipo_linha'], categories=ordem_codigo_tipo_linha, ordered=True)
+
+            if ordena_periodo_ferias:
+                dataframe['periodo_ferias'] = pd.Categorical(dataframe['periodo_ferias'], categories=ordem_periodo_ferias, ordered=True)
+
+            if ordena_dia_semana:
+                dataframe['dia_semana'] = pd.Categorical(dataframe['dia_semana'], categories=ordem_dia_semana, ordered=True)
+
+            return dataframe.sort_values(by=['codigo_tipo_linha', 'periodo_ferias', 'dia_semana'])
+        except Exception as e:
+            print("Não foi possível realizar a ordenação:", e)
+            return dataframe
 
     @classmethod
     def get_voos_ferias(cls) -> pd.DataFrame:
@@ -1033,20 +1161,25 @@ class AnacVoos:
         return dataframe_agg.nlargest(ranking, 'voos')
 
     @classmethod
-    def get_atrasos_voos_ferias(cls, cols_groupby, converter_segundos_para_tempo, filtro_periodo_ferias=None, filtro_codigo_tipo_linha=None) -> pd.DataFrame:
+    def get_atrasos_voos_ferias(cls, cols_groupby, converter_segundos_para_tempo, periodo=None, linha=None) -> pd.DataFrame:
         if not cls.dados_solidos:
             raise ValueError(
                 "Os dados não foram carregados ou foram comprometidos na transformação.")
+        
+        df_tot_voos: pd.DataFrame = cls.get_voos_ferias()
+        atrasos = df_tot_voos.query("partida_atrasou == 'S' or chegada_atrasou == 'S' or situacao_voo == 'Realizado Com Atraso'")
 
-        atrasos = cls.get_voos_ferias().query(
-            "partida_atrasou == 'S' or chegada_atrasou == 'S' or situacao_voo == 'Realizado Com Atraso'")
+        if periodo is not None:
+            filtro = "periodo_ferias == @periodo"
+            atrasos = atrasos.query(filtro)
+            df_tot_voos = df_tot_voos.query(filtro)
 
-        if filtro_periodo_ferias is not None:
-            atrasos = atrasos.query("periodo_ferias == @filtro_periodo_ferias")
+        if linha is not None:
+            filtro = "codigo_tipo_linha == @linha"
+            atrasos = atrasos.query(filtro)
+            df_tot_voos = df_tot_voos.query(filtro)
 
-        if filtro_codigo_tipo_linha is not None:
-            atrasos = atrasos.query(
-                "codigo_tipo_linha == @filtro_codigo_tipo_linha")
+        tot_voos: int = len(df_tot_voos)
 
         atrasos.loc[atrasos['tempo_atraso_partida'].notnull(), 'tempo_atraso_partida'] = atrasos.loc[atrasos['tempo_atraso_partida'].notnull(
         ), 'tempo_atraso_partida'].apply(Utils.converter_tempo_para_segundos)
@@ -1065,48 +1198,72 @@ class AnacVoos:
             atrasos.loc[:, 'media_atrasos_chegada'] = atrasos.loc[:,
                                                                   'media_atrasos_chegada'].apply(Utils.converter_segundos_para_tempo)
 
-        return atrasos.sort_values(by=['periodo_ferias', 'total_atrasos'], ascending=False)
+        return tot_voos, atrasos.sort_values(by=['periodo_ferias', 'total_atrasos'], ascending=False)
 
     @classmethod
-    def get_cancelamentos_voos_ferias(cls, cols_groupby, filtro_periodo_ferias=None, filtro_codigo_tipo_linha=None) -> pd.DataFrame:
+    def get_cancelamentos_voos_ferias(cls, cols_groupby, col_tx: str, round: int, periodo=None, linha=None) -> pd.DataFrame:
         if not cls.dados_solidos:
             raise ValueError(
                 "Os dados não foram carregados ou foram comprometidos na transformação.")
+        
+        df_voos_ferias: pd.DataFrame = cls.get_voos_ferias()
+        df_tot_voos: pd.DataFrame = df_voos_ferias
+        atrasos: pd.DataFrame = df_voos_ferias.query("situacao_voo == 'Cancelado'")
 
-        atrasos = cls.get_voos_ferias().query(
-            "situacao_voo == 'Cancelado'")
+        
+        if periodo is not None:
+            filtro: str = "periodo_ferias == @periodo"
+            atrasos = atrasos.query(filtro)
+            df_tot_voos = df_tot_voos.query(filtro)
 
-        if filtro_periodo_ferias is not None:
-            atrasos = atrasos.query("periodo_ferias == @filtro_periodo_ferias")
+        if linha is not None:
+            filtro: str = "codigo_tipo_linha == @linha"
+            atrasos = atrasos.query(filtro)
+            df_tot_voos = df_tot_voos.query(filtro)
 
-        if filtro_codigo_tipo_linha is not None:
-            atrasos = atrasos.query(
-                "codigo_tipo_linha == @filtro_codigo_tipo_linha")
+        tot_voos: int = len(df_tot_voos)
 
         atrasos = atrasos.groupby(cols_groupby).agg(
             total_cancelamentos=(cols_groupby[0], 'size'),
         ).reset_index()
 
-        return atrasos.sort_values(by=['periodo_ferias', 'total_cancelamentos'], ascending=False)
+        atrasos[col_tx] = (atrasos['total_cancelamentos'] / tot_voos).round(round)
+
+        return tot_voos, atrasos.sort_values(by=['periodo_ferias', 'total_cancelamentos'], ascending=False)
 
     @classmethod
-    def get_voos_ferias_resumo(cls, txs_columns, groupby_columns, round):
+    def get_voos_ferias_resumo(cls, cols_groupby, col_tx: str, round: int, periodo=None, linha=None, reset_index: bool = True, order: List[str] = [], ordenar_resumo: bool = False):
         if not cls.dados_solidos:
             raise ValueError(
                 "Os dados não foram carregados ou foram comprometidos na transformação.")
 
-        aggregation_columns = {
-            'voos': ('situacao_voo', 'size'),
-            'realizados_s_atraso': ('situacao_voo', lambda x: (x == 'Realizado Sem Atraso').sum()),
-            'realizados_c_atraso': ('situacao_voo', lambda x: (x == 'Realizado Com Atraso').sum()),
-            'cancelados': ('situacao_voo', lambda x: (x == 'Cancelado').sum())
+        add_aggregation = {
+            'voos': ('distancia_km', 'size')
         }
 
-        dataframe = cls.get_voos_ferias().groupby(
-            groupby_columns).agg(**aggregation_columns).reset_index()
+        df_tot_voos: pd.DataFrame = cls.get_voos_ferias()
 
-        for cols in txs_columns:
+        if linha is not None:
+            dataframe = dataframe.query("codigo_tipo_linha == @linha")
+        if periodo is not None:
+            dataframe = dataframe.query("periodo_ferias == @periodo")
+
+        dataframe = cls.__get_voos_ferias_regras(df_tot_voos, cols_groupby, add_aggregation)
+        
+        if len(order) == 0:
+            cols_percentuais_order = [col for sublist in col_tx for col in sublist[::-1]]
+            cols_add_aggregation = [key for key in add_aggregation.keys()]
+            cols_ordered = cols_groupby + cols_add_aggregation + cols_percentuais_order
+            dataframe = dataframe.reindex(columns=cols_ordered)
+
+        for cols in col_tx:
             dataframe[cols[0]] = (
                 dataframe[cols[1]] / dataframe['voos']).round(round)
+            
+        if reset_index:
+            dataframe = dataframe.sort_values(by='voos', ascending=False).reset_index(drop=True)
+
+        if ordenar_resumo:
+            dataframe = cls.__ordenar_resumo(dataframe, True, True, True)
 
         return dataframe
